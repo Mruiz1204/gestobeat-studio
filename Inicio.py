@@ -58,7 +58,7 @@ with st.sidebar:
 # ─────────────────────────────────────────────
 # ESTUDIO
 # ─────────────────────────────────────────────
-marca("Arma un beat con las manos: cada gesto es un sonido de batería, lo que tocas se repite en loop y le vas sumando capas.",
+marca("Cada gesto es un sonido de batería. Aprende paso a paso tu primer beat o arma el tuyo en el estudio, capa por capa.",
       titulo="GestoBeat Studio")
 
 estado = _studio(reconocimiento=reconocimiento, modelo_url=modelo_url, umbral=umbral, bpm=bpm,
@@ -76,6 +76,10 @@ if total:
     forma = ORIGEN.get(por_origen.most_common(1)[0][0], "")
     frase = (f"Llevas <b>{total} {'golpe' if total == 1 else 'golpes'}</b>, casi todos {forma}. "
              f"El que más suena es el <b style='color:{SONIDOS.get(favorito, '#fff')}'>{favorito.lower()}</b>.")
+    if estado.get("primer_beat"):
+        frase += " <b>Ya hiciste tu primer beat</b> en el modo Aprender."
+    elif estado.get("lecciones"):
+        frase += f" Vas en la lección <b>{estado['lecciones'] + 1} de 4</b>."
     if estado.get("pasos"):
         frase += f" Tu beat tiene <b>{estado['pasos']} golpes</b> en el compás y va a <b>{estado.get('bpm', 90)} BPM</b>."
     if estado.get("mqtt_enviados"):
@@ -107,7 +111,18 @@ else:
 # ─────────────────────────────────────────────
 st.markdown('<h3 class="ayudas-titulo">Antes de tocar</h3>', unsafe_allow_html=True)
 
-with st.expander("Cómo se arma un beat"):
+with st.expander("Modo Aprender: tu primer beat en 4 lecciones"):
+    st.markdown("""
+1. **El bombo** ✊ en el 1 y el 3: el latido del beat.
+2. **La caja** ✋ en el 2 y el 4: le responde al bombo.
+3. **El hi-hat** ☝️ en los «y», entre cada tiempo. Con la cámara basta con **mantener** ☝️ y se toca solo.
+4. **Todo junto:** tocas tú el bombo y la caja alternando ✊ y ✋ encima del hi-hat.
+
+Cada lección empieza con un compás de ejemplo; luego es tu turno y la app te dice si llegaste **a tiempo**, **un poco antes**
+o **un poco tarde**. La cuenta «1 y 2 y 3 y 4 y» marca de color dónde va cada golpe. Al terminar, lleva tu beat al estudio.
+""")
+
+with st.expander("Modo Estudio: cómo se arma un beat"):
     st.markdown(f"""
 1. **Prueba los sonidos.** Toca los pads, usa las teclas 1 a 6 o enciende la cámara y haz los gestos:
    ✊ bombo, ✋ caja, ☝️ hi-hat, ✌️ aplauso, 🤟 platillo (pulgar, índice y meñique) y 👍 bajo.

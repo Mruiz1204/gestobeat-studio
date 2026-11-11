@@ -133,6 +133,36 @@
   .pad.golpe { transform: translateY(3px) scale(0.98); filter: brightness(1.2); box-shadow: 0 0 30px -2px currentColor, inset 0 -2px 0 rgba(0,0,0,0.18); }
   .ayuda { text-align: center; color: var(--suave); font-size: 0.85rem; margin-top: 10px; min-height: 1.3em; }
 
+  /* ── modo aprender ── */
+  .modos { display: inline-flex; background: var(--texto); border-radius: 999px; padding: 4px; }
+  .modos button { background: none; border: 0; border-radius: 999px; padding: 9px 18px; color: var(--tinta); font-weight: 700; }
+  .modos button.activo { background: var(--tinta); color: var(--texto); }
+  .aprender .solo-estudio, .estudio .solo-aprender { display: none !important; }
+  .leccion { background: var(--texto); color: var(--tinta); border-radius: 28px; padding: 22px 26px; margin-bottom: 16px; }
+  .lec-cab { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 16px; }
+  .lec-cab small { color: #5a5680; font-weight: 700; font-size: 0.9rem; }
+  .leccion h2 { font-family: var(--display); font-weight: 800; font-size: 2rem; letter-spacing: -0.02em; margin: 2px 0 6px; }
+  .leccion p.explica { margin: 0; font-size: 1.08rem; max-width: 60ch; color: #2e2b55; }
+  .cuenta { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin: 18px 0 14px; }
+  .cuenta span { text-align: center; font-family: var(--display); font-weight: 800; font-size: 2.1rem; line-height: 1; padding: 12px 0 10px;
+                 border-radius: 14px; background: #e7e4f7; color: #b4afd6; transition: transform .06s, background .06s; }
+  .cuenta span.y { font-size: 1.35rem; padding-top: 18px; }
+  .cuenta span.meta { color: #fff; }
+  .cuenta span.ahora { outline: 3px solid var(--tinta); outline-offset: -3px; }
+  .cuenta span.pulso { transform: scale(1.08); }
+  .lec-pie { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+  .veredicto { font-family: var(--display); font-weight: 800; font-size: 1.45rem; min-height: 1.6em; }
+  .veredicto.bien { color: #1f8a4c; } .veredicto.casi { color: #b07a00; } .veredicto.mal { color: #c42f2a; } .veredicto.info { color: var(--tinta); }
+  .progreso { display: flex; gap: 6px; align-items: center; color: #5a5680; font-size: 0.9rem; }
+  .progreso i { width: 14px; height: 14px; border-radius: 50%; background: #d8d4ef; display: inline-block; }
+  .progreso i.ok { background: #1f8a4c; }
+  .leccion .acciones { display: flex; gap: 8px; flex-wrap: wrap; }
+  .leccion .principal { background: var(--tinta); color: var(--texto); }
+  .leccion .secundario { color: var(--tinta); border-color: #cfcbe6; }
+  .celda.meta { outline: 2px dashed currentColor; outline-offset: -3px; }
+  .celebracion { font-size: 1.15rem; }
+  @media (max-width: 640px) { .cuenta span { font-size: 1.5rem; } .cuenta span.y { font-size: 1rem; } }
+
   /* ── portada ── */
   .portada { position: fixed; inset: 0; z-index: 20; background: var(--tinta); display: grid; place-items: center; text-align: center; padding: 24px; }
   .portada.oculta { display: none; }
@@ -145,29 +175,48 @@
 </style>
 </head>
 <body>
-<div class="app" id="app">
+<div class="app aprender" id="app">
 
   <div class="portada" id="portada">
     <div>
       <div class="mini" id="miniGrilla"></div>
       <h1>Arma tu beat con las manos</h1>
-      <p>Cada gesto es un sonido de batería. Graba un compás, se repite en loop y le vas sumando capas.</p>
-      <button class="principal" id="btnEmpezar">Entrar al estudio</button>
+      <p>Cada gesto es un sonido de batería. Aprende paso a paso tu primer beat, o entra al estudio y graba el tuyo.</p>
+      <button class="principal" id="btnEmpezar">Empezar</button>
     </div>
   </div>
 
   <div class="transporte">
+    <div class="modos" role="group" aria-label="Modo">
+      <button data-modo="aprender" class="activo">Aprender</button>
+      <button data-modo="estudio">Estudio</button>
+    </div>
     <button class="play" id="btnPlay" aria-label="Reproducir">▶</button>
-    <button class="grabar" id="btnGrabar"><i></i><span id="grabarEtiqueta">Grabar</span></button>
+    <button class="grabar solo-estudio" id="btnGrabar"><i></i><span id="grabarEtiqueta">Grabar</span></button>
     <div class="bpm" aria-label="Tempo">
       <button id="bpmMenos" aria-label="Más lento">−</button>
       <span id="bpmValor">90 <small>BPM</small></span>
       <button id="bpmMas" aria-label="Más rápido">+</button>
     </div>
     <button class="chip-btn activo" id="btnMetronomo">Metrónomo</button>
-    <div class="segmento" role="group" aria-label="Patrones de ejemplo" id="patrones"></div>
+    <div class="segmento solo-estudio" role="group" aria-label="Patrones de ejemplo" id="patrones"></div>
     <button class="voz" id="btnVoz"><span class="ond"><i></i><i></i><i></i></span><span id="vozEtiqueta">Activar voz</span></button>
   </div>
+
+  <section class="leccion solo-aprender" id="leccion">
+    <div class="lec-cab"><small id="lecNumero">Lección 1 de 4</small><div class="progreso" id="lecProgreso"></div></div>
+    <h2 id="lecTitulo">Tu primer beat</h2>
+    <p class="explica" id="lecTexto"></p>
+    <div class="cuenta" id="cuenta"></div>
+    <div class="lec-pie">
+      <div class="veredicto info" id="veredicto"></div>
+      <div class="acciones">
+        <button class="principal" id="lecEmpezar">Empezar la lección</button>
+        <button class="secundario" id="lecEscuchar">Escuchar otra vez</button>
+        <button class="secundario" id="lecSaltar">Saltar</button>
+      </div>
+    </div>
+  </section>
 
   <section class="escenario">
     <div class="camara">
@@ -242,9 +291,9 @@ const $ = id => document.getElementById(id);
 
 let args = { reconocimiento: 'mano', modelo_url: '', broker: '', topico: 'gestobeat_miguelruiz', umbral: 0.75 };
 let patron = NOTAS.map(() => Array(PASOS).fill(false));
-let grabando = false, metronomo = true, pasoActual = -1;
+let grabando = false, metronomo = true, pasoActual = -1, modo = 'aprender';
 const saltar = NOTAS.map(() => -1);
-let stats = { golpes: 0, por_sonido: {}, por_origen: {}, bpm: 90, pasos: 0, loops_grabados: 0, mqtt_enviados: 0, ultimas: [] };
+let stats = { lecciones: 0, primer_beat: false, golpes: 0, por_sonido: {}, por_origen: {}, bpm: 90, pasos: 0, loops_grabados: 0, mqtt_enviados: 0, ultimas: [] };
 
 // ───────────────────────── Streamlit (protocolo de componentes) ─────────────────────────
 function aStreamlit(type, data) { window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type }, data || {}), '*'); }
@@ -331,20 +380,23 @@ const secuencia = new Tone.Sequence((t, paso) => {
   NOTAS.forEach((_, i) => {
     if (!patron[i][paso]) return;
     if (saltar[i] === paso) { saltar[i] = -1; return; }   // ya sonó en vivo al grabarlo
+    if (modo === 'aprender' && silenciado(i)) return;      // la capa que se está aprendiendo la toca el jugador
     disparar(i, t, paso);
   });
+  if (modo === 'aprender') leccionEnPaso(t, paso);
   if (metronomo && paso % 4 === 0 && sonidoListo) kit.click.triggerAttackRelease(paso === 0 ? 'C6' : 'G5', '32n', t);
   Tone.Draw.schedule(() => {
     pasoActual = paso;
     pintarPaso(paso);
-    NOTAS.forEach((_, i) => { if (patron[i][paso]) iluminar(i, 'loop'); });
+    NOTAS.forEach((_, i) => { if (patron[i][paso] && !(modo === 'aprender' && silenciado(i))) iluminar(i, 'loop'); });
+    if (modo === 'aprender') pintarCuenta(paso);
   }, t);
 }, [...Array(PASOS).keys()], '16n');
 secuencia.start(0);
 
 function reproducir() {
   if (Tone.Transport.state === 'started') return;
-  activarSonido().then(() => { Tone.Transport.start('+0.05'); actualizarTransporte(); });
+  activarSonido().then(() => { Tone.Transport.start('+0.05'); actualizarTransporte(); setTimeout(actualizarTransporte, 120); });
 }
 function detener() {
   Tone.Transport.stop(); grabando = false; pasoActual = -1;
@@ -368,6 +420,7 @@ function actualizarTransporte() {
   $('btnPlay').setAttribute('aria-label', sonando ? 'Detener' : 'Reproducir');
   $('btnGrabar').classList.toggle('activo', grabando);
   $('grabarEtiqueta').textContent = grabando ? 'Grabando' : 'Grabar';
+  if (modo === 'aprender') { $('estadoLoop').textContent = sonando ? 'La lección está sonando' : 'La lección está en pausa'; return; }
   $('estadoLoop').textContent = grabando ? 'Grabando: lo que toques queda en el loop' : sonando ? 'El loop está sonando' : 'El loop está detenido';
 }
 $('btnPlay').onclick = () => Tone.Transport.state === 'started' ? detener() : reproducir();
@@ -382,7 +435,7 @@ $('btnBorrar').onclick = () => { patron = NOTAS.map(() => Array(PASOS).fill(fals
 function pasoCuantizado(origen) {
   const ticksPorPaso = Tone.Transport.PPQ / 4;
   const retraso = origen === 'gesto' ? 0.16 : 0.03;
-  const ticks = Tone.Transport.ticks - Tone.Transport.toTicks(retraso);
+  const ticks = Tone.Transport.getTicksAtTime(Tone.immediate()) - Tone.Transport.toTicks(retraso);
   const exacto = ticks / ticksPorPaso;
   const paso = ((Math.round(exacto) % PASOS) + PASOS) % PASOS;
   const adelantado = Math.round(exacto) > Math.floor(exacto);
@@ -430,7 +483,8 @@ function iluminar(i, origen) {
 function golpe(i, origen) {
   disparar(i, Tone.now(), -1);
   iluminar(i, origen);
-  if (grabando && Tone.Transport.state === 'started') {
+  if (modo === 'aprender') evaluarGolpe(i, origen);
+  else if (grabando && Tone.Transport.state === 'started') {
     const { paso, adelantado } = pasoCuantizado(origen);
     if (!patron[i][paso]) { patron[i][paso] = true; pintarCelda(i, paso); }
     if (adelantado) saltar[i] = paso;
@@ -445,6 +499,200 @@ function golpe(i, origen) {
 }
 // la detección de gestos llama a tocar(nota): se traduce al sonido de batería
 function tocar(nota, origen) { if (nota in porNombre) activarSonido().then(() => golpe(porNombre[nota], origen)); }
+
+// ───────────────────────── modo «Aprende tu primer beat» ─────────────────────────
+const LECCIONES = [
+  { sonido: 'Re', titulo: 'El bombo', gesto: '✊',
+    texto: 'Un beat es un ciclo de cuatro tiempos que se repite: 1, 2, 3, 4. El bombo es su latido y suena en el 1 y en el 3. Escucha un compás y después haz ✊ (o la tecla 1) cuando se iluminen.',
+    pasos: [0, 8] },
+  { sonido: 'Do', titulo: 'La caja', gesto: '✋',
+    texto: 'La caja le responde al bombo: suena en el 2 y en el 4. Con el bombo sonando solo, haz ✋ (o la tecla 2) en esos tiempos.',
+    pasos: [4, 12] },
+  { sonido: 'Mi', titulo: 'El hi-hat', gesto: '☝️',
+    texto: 'El hi-hat va en los «y», entre cada tiempo, y le da movimiento al beat. Con la cámara, mantén ☝️ y se toca solo en cada «y». Con el teclado, presiona 3 en cada «y».',
+    pasos: [2, 6, 10, 14] },
+  { sonido: null, titulo: 'Todo junto', gesto: '✊ ✋', final: true,
+    texto: 'Ya tienes el beat más básico de todos. Ahora tócalo tú encima del hi-hat: ✊ en el 1 y el 3, ✋ en el 2 y el 4. Alternar esos dos gestos es todo el truco.',
+    pasos: [0, 4, 8, 12] },
+];
+const SOLO_FINAL = { 0: 'Re', 4: 'Do', 8: 'Re', 12: 'Do' };   // qué sonido va en cada tiempo del reto final
+const REQUERIDOS = 2;          // aciertos por golpe para pasar de lección
+const FINAL_REQUERIDOS = 8;    // aciertos del reto final
+let lec = { n: 0, fase: 'intro', compases: 0, aciertos: {}, finalBien: 0 };
+
+function leccionActual() { return LECCIONES[lec.n]; }
+function sonidoEn(L, paso) { return L.final ? SOLO_FINAL[paso] : L.sonido; }
+function articulo(n) { return { Re: 'el bombo', Do: 'la caja', Mi: 'el hi-hat' }[n] || 'cada golpe'; }
+// la capa que se está aprendiendo no la toca el loop: la toca el jugador
+function silenciado(i) {
+  const L = leccionActual();
+  if (lec.fase === 'celebrar') return false;
+  if (L.final) return NOTAS[i].n === 'Re' || NOTAS[i].n === 'Do';
+  return lec.fase !== 'hecho' && NOTAS[i].n === L.sonido;
+}
+
+function prepararLeccion(n) {
+  lec = { n, fase: 'intro', compases: 0, aciertos: {}, finalBien: 0 };
+  const L = leccionActual();
+  if (n === 0) { patron = NOTAS.map(() => Array(PASOS).fill(false)); pintarGrilla(); }
+  $('lecNumero').textContent = `Lección ${n + 1} de ${LECCIONES.length}`;
+  $('lecTitulo').textContent = L.titulo;
+  $('lecTexto').textContent = L.texto;
+  $('lecEmpezar').textContent = n === 0 ? 'Empezar la lección' : 'Empezar';
+  $('lecEmpezar').style.display = '';
+  $('lecEscuchar').textContent = 'Escuchar otra vez';
+  $('lecSaltar').style.display = '';
+  veredicto(L.final ? 'Primero escucha cómo suena completo.' : `Primero escucha dónde va ${articulo(L.sonido)}.`, 'info');
+  pintarCuentaBase(); marcarMetas(); pintarProgreso();
+}
+function empezarLeccion() {
+  activarSonido().then(() => {
+    if (Tone.Transport.bpm.value > 95) fijarBpm(80);
+    lec.fase = 'escucha'; lec.compases = 0;
+    $('lecEmpezar').style.display = 'none';
+    veredicto('Escucha…', 'info');
+    if (Tone.Transport.state !== 'started') { Tone.Transport.position = 0; reproducir(); }
+  });
+}
+// se llama en cada paso del loop, con el tiempo de audio t
+function leccionEnPaso(t, paso) {
+  const L = leccionActual();
+  if (paso === 0 && lec.fase === 'escucha') {
+    lec.compases++;
+    if (lec.compases > 1) {
+      lec.fase = 'turno';
+      Tone.Draw.schedule(() => veredicto(L.final ? '¡Tu turno! Alterna ✊ y ✋.' : `¡Tu turno! Haz ${L.gesto} en los tiempos de color.`, 'info'), t);
+    }
+  }
+  if (!L.pasos.includes(paso)) return;
+  if (lec.fase === 'escucha' && lec.compases === 1) {      // compás de ejemplo
+    const n = sonidoEn(L, paso);
+    disparar(porNombre[n], t, paso);
+    Tone.Draw.schedule(() => { iluminar(porNombre[n], 'loop'); pulso(paso); }, t);
+  }
+  // hi-hat con el gesto sostenido: mientras se mantiene ☝️, suena solo en cada «y»
+  if (lec.fase === 'turno' && L.sonido === 'Mi' && gestoSostenido() === 'Mi') {
+    disparar(porNombre.Mi, t, paso);
+    Tone.Draw.schedule(() => { iluminar(porNombre.Mi, 'gesto'); registrarAcierto(paso, '¡Así! Mantén ☝️'); }, t);
+  }
+}
+function gestoSostenido() { return estable >= 2 ? candidato : null; }
+
+function evaluarGolpe(i, origen) {
+  const L = leccionActual();
+  if (lec.fase !== 'turno' || Tone.Transport.state !== 'started') return;
+  if (L.sonido === 'Mi' && origen === 'gesto') return;    // con gesto, el hi-hat se evalúa sostenido
+  const ticksPorPaso = Tone.Transport.PPQ / 4;
+  const retraso = origen === 'gesto' ? 0.16 : 0.03;
+  const exacto = (Tone.Transport.getTicksAtTime(Tone.immediate()) - Tone.Transport.toTicks(retraso)) / ticksPorPaso;
+  let mejor = L.pasos[0], dist = 99;
+  L.pasos.forEach(p => {
+    let d = exacto - p;
+    d = (((d + PASOS / 2) % PASOS) + PASOS) % PASOS - PASOS / 2;
+    if (Math.abs(d) < Math.abs(dist)) { dist = d; mejor = p; }
+  });
+  const esperado = sonidoEn(L, mejor);
+  if (NOTAS[i].n !== esperado) {
+    const gestos = { Re: '✊', Do: '✋', Mi: '☝️' };
+    veredicto(`En ese tiempo va ${articulo(esperado)} ${gestos[esperado] || ''}`, 'mal');
+    return;
+  }
+  if (Math.abs(dist) <= 0.6) registrarAcierto(mejor, Math.abs(dist) <= 0.4 ? '¡A tiempo!' : '¡Bien!');
+  else if (Math.abs(dist) <= 1.6) veredicto(dist < 0 ? 'Casi: un poco antes de tiempo' : 'Casi: un poco tarde', 'casi');
+  else veredicto(`Ese no va ahí: ${articulo(esperado)} va en los tiempos de color`, 'mal');
+}
+function registrarAcierto(paso, texto) {
+  const L = leccionActual();
+  if (lec.fase !== 'turno') return;
+  const i = porNombre[sonidoEn(L, paso)];
+  if (!patron[i][paso]) { patron[i][paso] = true; pintarCelda(i, paso); marcarMetas(); }
+  pulso(paso);
+  if (L.final) {
+    lec.finalBien++;
+    veredicto(`${texto} ${lec.finalBien} de ${FINAL_REQUERIDOS}`, 'bien');
+    if (lec.finalBien >= FINAL_REQUERIDOS) celebrar();
+  } else {
+    lec.aciertos[paso] = (lec.aciertos[paso] || 0) + 1;
+    veredicto(texto, 'bien');
+    if (L.pasos.every(p => (lec.aciertos[p] || 0) >= REQUERIDOS)) completarLeccion();
+  }
+  pintarProgreso(); enviarStats();
+}
+function completarLeccion() {
+  const L = leccionActual();
+  lec.fase = 'hecho';
+  stats.lecciones = Math.max(stats.lecciones, lec.n + 1);
+  veredicto(`¡Lo lograste! Ahora ${articulo(L.sonido)} queda sonando ${L.sonido === 'Do' ? 'sola' : 'solo'}.`, 'bien');
+  setTimeout(() => { if (modo === 'aprender' && lec.fase === 'hecho') { prepararLeccion(lec.n + 1); empezarLeccion(); } }, 2600);
+}
+function celebrar() {
+  lec.fase = 'celebrar';
+  stats.lecciones = LECCIONES.length; stats.primer_beat = true;
+  $('lecTitulo').textContent = '¡Hiciste tu primer beat!';
+  $('lecTexto').innerHTML = 'Bombo en el 1 y el 3, caja en el 2 y el 4, hi-hat en los «y». Con esos tres sonidos se arma la base de casi todo el pop, el rock y el hip hop. <b>Llévalo al estudio</b> para agregarle aplausos, platillo y bajo.';
+  veredicto('🎉 Beat completo', 'bien');
+  $('lecEmpezar').textContent = 'Llevarlo al estudio';
+  $('lecEmpezar').style.display = '';
+  $('lecEscuchar').textContent = 'Repetir las lecciones';
+  $('lecSaltar').style.display = 'none';
+  pintarCuentaBase(); marcarMetas(); enviarStats();
+}
+function veredicto(t, clase) { const v = $('veredicto'); v.textContent = t; v.className = 'veredicto ' + clase; }
+
+// cuenta «1 y 2 y 3 y 4 y»: cada casilla es medio tiempo (dos pasos)
+function pintarCuentaBase() {
+  const L = leccionActual();
+  $('cuenta').innerHTML = ['1', 'y', '2', 'y', '3', 'y', '4', 'y'].map((txt, k) => {
+    const paso = k * 2, meta = L.pasos.includes(paso) && lec.fase !== 'celebrar';
+    const fondo = meta ? `background:${NOTAS[porNombre[sonidoEn(L, paso)]].color}` : '';
+    return `<span id="cu${k}" class="${txt === 'y' ? 'y' : ''} ${meta ? 'meta' : ''}" style="${fondo}">${txt}</span>`;
+  }).join('');
+}
+function pintarCuenta(paso) {
+  document.querySelectorAll('#cuenta span').forEach((sp, k) => sp.classList.toggle('ahora', paso >= 0 && Math.floor(paso / 2) === k));
+}
+function pulso(paso) {
+  const sp = $('cu' + Math.floor(paso / 2)); if (!sp) return;
+  sp.classList.add('pulso'); setTimeout(() => sp.classList.remove('pulso'), 140);
+}
+function marcarMetas() {
+  document.querySelectorAll('.celda.meta').forEach(c => c.classList.remove('meta'));
+  if (modo !== 'aprender' || lec.fase === 'celebrar') return;
+  const L = leccionActual();
+  L.pasos.forEach(p => {
+    const i = porNombre[sonidoEn(L, p)], c = $(`c${i}_${p}`);
+    if (!patron[i][p] || L.final) { c.classList.add('meta'); c.style.color = NOTAS[i].color; }
+  });
+}
+function pintarProgreso() {
+  const L = leccionActual();
+  const total = L.final ? FINAL_REQUERIDOS : L.pasos.length * REQUERIDOS;
+  const hechos = L.final ? lec.finalBien : L.pasos.reduce((a, p) => a + Math.min(lec.aciertos[p] || 0, REQUERIDOS), 0);
+  $('lecProgreso').innerHTML = Array.from({ length: total }, (_, k) => `<i class="${k < hechos ? 'ok' : ''}"></i>`).join('');
+}
+function cambiarModo(nuevo) {
+  modo = nuevo;
+  $('app').classList.toggle('aprender', modo === 'aprender');
+  $('app').classList.toggle('estudio', modo === 'estudio');
+  document.querySelectorAll('.modos button').forEach(b => b.classList.toggle('activo', b.dataset.modo === modo));
+  grabando = false; marcarMetas(); pintarCuenta(-1);
+  $('secInfo').textContent = modo === 'aprender' ? 'Aquí se va armando el beat que aprendes, capa por capa.'
+                                                 : 'Un compás de 16 pasos. Toca las casillas para poner o quitar golpes.';
+  actualizarTransporte(); ajustarAlto();
+}
+document.querySelectorAll('.modos button').forEach(b => b.onclick = () => cambiarModo(b.dataset.modo));
+$('lecEmpezar').onclick = () => lec.fase === 'celebrar' ? cambiarModo('estudio') : empezarLeccion();
+$('lecEscuchar').onclick = () => {
+  if (lec.fase === 'celebrar') { prepararLeccion(0); return; }
+  lec.fase = 'escucha'; lec.compases = 0; $('lecEmpezar').style.display = 'none';
+  veredicto('Escucha…', 'info'); reproducir();
+};
+$('lecSaltar').onclick = () => {
+  const L = leccionActual();
+  if (L.final || lec.fase === 'celebrar') { celebrar(); return; }
+  L.pasos.forEach(p => { patron[porNombre[L.sonido]][p] = true; pintarCelda(porNombre[L.sonido], p); });
+  prepararLeccion(lec.n + 1); empezarLeccion();
+};
 
 // ───────────────────────── interfaz: pads, grilla, guía, LEDs ─────────────────────────
 ORDEN.forEach((i, k) => {
@@ -735,7 +983,10 @@ function comandoDeVoz(texto) {
   if (numero) return fijarBpm(+numero[1]);
   if (/mas rapido|acelera/.test(t)) return fijarBpm(Tone.Transport.bpm.value + 10);
   if (/mas lento|despacio/.test(t)) return fijarBpm(Tone.Transport.bpm.value - 10);
-  if (/grab/.test(t)) { if (!grabando) alternarGrabar(); return; }
+  if (modo === 'aprender' && /empez|comenz|leccion/.test(t)) return empezarLeccion();
+  if (/aprend/.test(t)) return cambiarModo('aprender');
+  if (/estudio/.test(t)) return cambiarModo('estudio');
+  if (/grab/.test(t)) { if (modo === 'aprender') cambiarModo('estudio'); if (!grabando) alternarGrabar(); return; }
   if (/para|deten|stop|alto/.test(t)) return detener();
   if (/toca|reproduc|play|dale|empieza/.test(t)) return reproducir();
   if (/borra|limpia/.test(t)) return $('btnBorrar').click();
@@ -777,7 +1028,7 @@ $('btnVoz').onclick = alternarVoz;
   }));
 })();
 $('btnEmpezar').onclick = async () => { await activarSonido(); $('portada').classList.add('oculta'); };
-pintarGrilla(); actualizarTransporte();
+pintarGrilla(); prepararLeccion(0); cambiarModo('aprender');
 document.addEventListener('click', e => { if (e.target.closest('button')) e.target.closest('button').blur(); });
 </script>
 </body>
