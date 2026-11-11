@@ -1,0 +1,2 @@
+Opcional: pon aquí model.json, metadata.json y weights.bin exportados de Teachable Machine
+(Exportar → Tensorflow.js → Descargar). Si el panel lateral tiene un enlace, se usa el enlace.

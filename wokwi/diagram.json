@@ -1,0 +1,278 @@
+{
+  "version": 1,
+  "author": "Miguel Ruiz",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_do",
+      "top": -90,
+      "left": 200,
+      "attrs": {
+        "color": "red",
+        "label": "Do"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_do",
+      "top": 10,
+      "left": 190,
+      "rotate": 90,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_re",
+      "top": -90,
+      "left": 248,
+      "attrs": {
+        "color": "orange",
+        "label": "Re"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_re",
+      "top": 10,
+      "left": 238,
+      "rotate": 90,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_mi",
+      "top": -90,
+      "left": 296,
+      "attrs": {
+        "color": "yellow",
+        "label": "Mi"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_mi",
+      "top": 10,
+      "left": 286,
+      "rotate": 90,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_fa",
+      "top": -90,
+      "left": 344,
+      "attrs": {
+        "color": "limegreen",
+        "label": "Fa"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_fa",
+      "top": 10,
+      "left": 334,
+      "rotate": 90,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_sol",
+      "top": -90,
+      "left": 392,
+      "attrs": {
+        "color": "green",
+        "label": "Sol"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_sol",
+      "top": 10,
+      "left": 382,
+      "rotate": 90,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_la",
+      "top": -90,
+      "left": 440,
+      "attrs": {
+        "color": "purple",
+        "label": "La"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_la",
+      "top": 10,
+      "left": 430,
+      "rotate": 90,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz",
+      "top": 110,
+      "left": 240,
+      "attrs": {
+        "volume": "0.3"
+      }
+    }
+  ],
+  "connections": [
+    [
+      "esp:TX",
+      "$serialMonitor:RX",
+      "",
+      []
+    ],
+    [
+      "esp:RX",
+      "$serialMonitor:TX",
+      "",
+      []
+    ],
+    [
+      "led_do:A",
+      "r_do:1",
+      "green",
+      []
+    ],
+    [
+      "r_do:2",
+      "esp:13",
+      "green",
+      []
+    ],
+    [
+      "led_do:C",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "led_re:A",
+      "r_re:1",
+      "green",
+      []
+    ],
+    [
+      "r_re:2",
+      "esp:12",
+      "green",
+      []
+    ],
+    [
+      "led_re:C",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "led_mi:A",
+      "r_mi:1",
+      "green",
+      []
+    ],
+    [
+      "r_mi:2",
+      "esp:14",
+      "green",
+      []
+    ],
+    [
+      "led_mi:C",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "led_fa:A",
+      "r_fa:1",
+      "green",
+      []
+    ],
+    [
+      "r_fa:2",
+      "esp:33",
+      "green",
+      []
+    ],
+    [
+      "led_fa:C",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "led_sol:A",
+      "r_sol:1",
+      "green",
+      []
+    ],
+    [
+      "r_sol:2",
+      "esp:27",
+      "green",
+      []
+    ],
+    [
+      "led_sol:C",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "led_la:A",
+      "r_la:1",
+      "green",
+      []
+    ],
+    [
+      "r_la:2",
+      "esp:26",
+      "green",
+      []
+    ],
+    [
+      "led_la:C",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "bz:2",
+      "esp:25",
+      "red",
+      []
+    ],
+    [
+      "bz:1",
+      "esp:GND.1",
+      "black",
+      []
+    ]
+  ],
+  "dependencies": {}
+}

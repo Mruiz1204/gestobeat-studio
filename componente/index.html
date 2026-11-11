@@ -1,0 +1,784 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GestoBeat Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<script src="lib/tf.min.js"></script>
+<script src="lib/tone.min.js"></script>
+<script src="lib/mqtt.min.js"></script>
+<script src="lib/mediapipe/hands.js"></script>
+<style>
+  :root {
+    --tinta: #1a1838; --escenario: #221f47; --panel: #2a2754; --linea: #3d3970; --texto: #f4f2ff; --suave: #aba6d3;
+    --rojo: #e8413c; --display: 'Bricolage Grotesque', 'Segoe UI', sans-serif; --cuerpo: 'Atkinson Hyperlegible', 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: transparent; color: var(--texto); font-family: var(--cuerpo); font-size: 15px; line-height: 1.45; }
+  .app { padding: 4px 2px 12px; }
+  button { font-family: var(--cuerpo); font-size: 0.95rem; color: var(--texto); cursor: pointer; }
+  button:focus-visible, .pad:focus-visible, .celda:focus-visible { outline: 3px solid #f7d23e; outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+  /* ── transporte ── */
+  .transporte { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-bottom: 16px; }
+  .play { width: 54px; height: 54px; border-radius: 50%; border: 0; background: var(--texto); color: var(--tinta); font-size: 1.3rem;
+          display: grid; place-items: center; }
+  .play.activo { background: #3fb56a; color: #fff; }
+  .grabar { display: inline-flex; align-items: center; gap: 9px; border: 1.5px solid var(--linea); background: var(--escenario);
+            border-radius: 999px; padding: 11px 18px; font-weight: 700; }
+  .grabar i { width: 12px; height: 12px; border-radius: 50%; background: var(--rojo); display: inline-block; }
+  .grabar.activo { background: var(--rojo); border-color: var(--rojo); }
+  .grabar.activo i { background: #fff; animation: latido 1s ease-in-out infinite; }
+  @keyframes latido { 50% { opacity: .3; } }
+  .bpm { display: inline-flex; align-items: center; gap: 4px; background: var(--escenario); border: 1px solid var(--linea); border-radius: 999px; padding: 4px; }
+  .bpm button { width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--panel); font-weight: 700; font-size: 1.1rem; }
+  .bpm span { font-family: var(--display); font-weight: 800; font-size: 1.25rem; min-width: 92px; text-align: center; }
+  .bpm small { font-family: var(--cuerpo); font-weight: 400; font-size: 0.8rem; color: var(--suave); }
+  .chip-btn { background: var(--escenario); border: 1px solid var(--linea); border-radius: 999px; padding: 9px 16px; font-weight: 700; color: var(--suave); }
+  .chip-btn.activo { color: var(--texto); border-color: var(--suave); }
+  .segmento { display: inline-flex; background: var(--escenario); border: 1px solid var(--linea); border-radius: 999px; padding: 4px; }
+  .segmento button { background: none; border: 0; border-radius: 999px; padding: 8px 14px; color: var(--suave); font-weight: 700; }
+  .segmento button:hover { color: var(--texto); }
+  .segmento button.activo { background: var(--texto); color: var(--tinta); }
+  .voz { margin-left: auto; display: inline-flex; align-items: center; gap: 9px; background: var(--escenario); border: 1px solid var(--linea);
+         border-radius: 999px; padding: 9px 16px 9px 12px; font-weight: 700; }
+  .voz .ond { display: inline-flex; gap: 2px; align-items: center; height: 14px; }
+  .voz .ond i { width: 3px; height: 5px; border-radius: 2px; background: var(--suave); }
+  .voz.activo { border-color: #3fb56a; }
+  .voz.activo .ond i { background: #3fb56a; animation: onda .9s ease-in-out infinite; }
+  .voz.activo .ond i:nth-child(2) { animation-delay: .15s; } .voz.activo .ond i:nth-child(3) { animation-delay: .3s; }
+  @keyframes onda { 50% { height: 14px; } }
+  @media (max-width: 780px) { .voz { margin-left: 0; } }
+
+  /* ── escenario ── */
+  .escenario { display: grid; grid-template-columns: 1.15fr 1fr; background: var(--escenario); border: 1px solid var(--linea);
+               border-radius: 28px; overflow: hidden; }
+  @media (max-width: 780px) { .escenario { grid-template-columns: 1fr; } }
+  .camara { padding: 18px; border-right: 1px solid var(--linea); }
+  .visor { position: relative; aspect-ratio: 4 / 3; background: #141230; border-radius: 18px; overflow: hidden; }
+  .visor video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: none; }
+  .visor.viva video { display: block; }
+  .visor canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .visor .aro { position: absolute; inset: 0; border-radius: 18px; transition: box-shadow .18s; pointer-events: none; }
+  .visor .vacio { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; color: var(--suave); }
+  .visor.viva .vacio { display: none; }
+  .visor .vacio p { margin: 0 0 14px; max-width: 300px; }
+  .visor .lectura { position: absolute; left: 12px; bottom: 12px; background: rgba(26,24,56,0.82); border-radius: 999px;
+                    padding: 5px 12px; font-size: 0.85rem; display: none; }
+  .visor.viva .lectura { display: block; }
+  .principal { background: var(--texto); color: var(--tinta); border: 0; border-radius: 999px; padding: 11px 22px; font-weight: 700; }
+  .secundario { background: none; border: 1px solid var(--linea); border-radius: 999px; padding: 9px 18px; font-weight: 700; }
+  .gestos { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 14px; }
+  .gesto { text-align: center; padding: 8px 2px 6px; border-radius: 12px; }
+  .gesto span { font-size: 1.45rem; display: flex; align-items: center; justify-content: center; height: 1.85rem; line-height: 1; }
+  .gesto b { font-family: var(--display); font-size: 0.82rem; display: block; }
+  .gesto .p { height: 4px; background: var(--linea); border-radius: 2px; margin: 6px 6px 0; overflow: hidden; }
+  .gesto .p i { display: block; height: 100%; width: 0; transition: width .12s; }
+  .gesto.encendido { background: var(--panel); }
+  .pie-camara { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; color: var(--suave); font-size: 0.85rem; gap: 10px; }
+
+  .ahora { padding: 24px 28px; display: flex; flex-direction: column; }
+  .golpe-grande { font-family: var(--display); font-weight: 800; font-size: 6.2rem; line-height: 0.92; letter-spacing: -0.04em;
+                  color: var(--linea); margin: 4px 0 6px; transition: color .08s; }
+  .golpe-grande.golpe { animation: golpe .28s ease-out; }
+  @keyframes golpe { 0% { transform: scale(1.07); } 100% { transform: scale(1); } }
+  .detalle { font-size: 1.02rem; color: var(--suave); min-height: 1.5em; }
+  .detalle b { color: var(--texto); }
+  .compas { display: flex; gap: 10px; margin: 18px 0 4px; }
+  .compas i { width: 16px; height: 16px; border-radius: 50%; background: var(--linea); transition: background .05s, transform .05s; }
+  .compas i.on { background: var(--texto); transform: scale(1.2); }
+  .esp { margin-top: auto; padding-top: 20px; }
+  .esp h4 { font-family: var(--display); font-weight: 700; font-size: 1rem; margin: 0 0 10px; }
+  .leds { display: flex; gap: 14px; align-items: center; }
+  .led { width: 22px; height: 22px; border-radius: 50%; opacity: 0.2; transition: opacity .06s, box-shadow .06s; }
+  .led.on { opacity: 1; box-shadow: 0 0 18px 2px currentColor; }
+  .mensaje-mqtt { margin-top: 10px; font-size: 0.82rem; color: var(--suave); word-break: break-word; min-height: 1.3em; }
+  .estado { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 14px; font-size: 0.85rem; color: var(--suave); }
+  .estado span { display: inline-flex; align-items: center; gap: 6px; }
+  .estado i { width: 8px; height: 8px; border-radius: 50%; background: var(--linea); }
+  .estado .on { color: var(--texto); } .estado .on i { background: #3fb56a; }
+  .estado .espera i { background: #f7d23e; } .estado .error i { background: var(--rojo); }
+
+  /* ── secuenciador ── */
+  .secuenciador { margin-top: 18px; background: var(--escenario); border: 1px solid var(--linea); border-radius: 22px; padding: 18px 20px; }
+  .sec-cab { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .sec-cab h3 { font-family: var(--display); font-weight: 800; font-size: 1.3rem; margin: 0; }
+  .sec-cab p { margin: 2px 0 0; color: var(--suave); font-size: 0.88rem; }
+  .fila { display: grid; grid-template-columns: 112px 1fr 30px; align-items: center; gap: 10px; margin: 6px 0; }
+  .fila .nombre { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.92rem; }
+  .fila .nombre i { width: 10px; height: 10px; border-radius: 3px; }
+  .pasos { display: grid; grid-template-columns: repeat(16, 1fr); gap: 4px; }
+  .celda { aspect-ratio: 1; min-height: 18px; max-height: 40px; border-radius: 7px; background: var(--panel); border: 0; padding: 0; transition: transform .05s; }
+  .celda:nth-child(4n+1) { background: #34306a; }
+  .celda:nth-child(4n):not(:last-child) { margin-right: 6px; }
+  .celda.on { box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2); }
+  .celda.actual { outline: 2px solid rgba(244,242,255,0.75); outline-offset: 1px; }
+  .celda.on.actual { transform: scale(1.12); }
+  .limpiar { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--linea); background: none; color: var(--suave); font-size: 1rem; line-height: 1; }
+  .limpiar:hover { color: var(--texto); border-color: var(--suave); }
+  @media (max-width: 640px) { .fila { grid-template-columns: 70px 1fr 26px; } .fila .nombre span { font-size: 0.78rem; } }
+
+  /* ── pads ── */
+  .pads { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 16px; user-select: none; touch-action: none; }
+  @media (max-width: 640px) { .pads { grid-template-columns: repeat(3, 1fr); } }
+  .pad { height: 118px; border-radius: 18px; color: var(--tinta); display: flex; flex-direction: column; justify-content: space-between;
+         padding: 12px 14px; cursor: pointer; box-shadow: inset 0 -6px 0 rgba(0,0,0,0.18); transition: transform .06s, filter .06s, box-shadow .06s; }
+  .pad .g { font-size: 1.5rem; line-height: 1; }
+  .pad b { font-family: var(--display); font-weight: 800; font-size: 1.25rem; line-height: 1; display: block; }
+  .pad small { font-size: 0.78rem; opacity: 0.75; }
+  .pad.golpe { transform: translateY(3px) scale(0.98); filter: brightness(1.2); box-shadow: 0 0 30px -2px currentColor, inset 0 -2px 0 rgba(0,0,0,0.18); }
+  .ayuda { text-align: center; color: var(--suave); font-size: 0.85rem; margin-top: 10px; min-height: 1.3em; }
+
+  /* ── portada ── */
+  .portada { position: fixed; inset: 0; z-index: 20; background: var(--tinta); display: grid; place-items: center; text-align: center; padding: 24px; }
+  .portada.oculta { display: none; }
+  .portada .mini { display: grid; grid-template-columns: repeat(8, 22px); gap: 6px; justify-content: center; margin-bottom: 26px; }
+  .portada .mini i { height: 22px; border-radius: 6px; background: var(--panel); animation: encender 1.6s steps(1) infinite; }
+  @keyframes encender { 0%, 12% { filter: brightness(1.7); } 13%, 100% { filter: brightness(0.75); } }
+  .portada h1 { font-family: var(--display); font-weight: 800; font-size: 3.2rem; letter-spacing: -0.03em; margin: 0; line-height: 1; }
+  .portada p { color: var(--suave); max-width: 420px; margin: 14px auto 24px; font-size: 1.05rem; }
+  .portada .principal { font-size: 1.05rem; padding: 14px 30px; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <div class="portada" id="portada">
+    <div>
+      <div class="mini" id="miniGrilla"></div>
+      <h1>Arma tu beat con las manos</h1>
+      <p>Cada gesto es un sonido de batería. Graba un compás, se repite en loop y le vas sumando capas.</p>
+      <button class="principal" id="btnEmpezar">Entrar al estudio</button>
+    </div>
+  </div>
+
+  <div class="transporte">
+    <button class="play" id="btnPlay" aria-label="Reproducir">▶</button>
+    <button class="grabar" id="btnGrabar"><i></i><span id="grabarEtiqueta">Grabar</span></button>
+    <div class="bpm" aria-label="Tempo">
+      <button id="bpmMenos" aria-label="Más lento">−</button>
+      <span id="bpmValor">90 <small>BPM</small></span>
+      <button id="bpmMas" aria-label="Más rápido">+</button>
+    </div>
+    <button class="chip-btn activo" id="btnMetronomo">Metrónomo</button>
+    <div class="segmento" role="group" aria-label="Patrones de ejemplo" id="patrones"></div>
+    <button class="voz" id="btnVoz"><span class="ond"><i></i><i></i><i></i></span><span id="vozEtiqueta">Activar voz</span></button>
+  </div>
+
+  <section class="escenario">
+    <div class="camara">
+      <div class="visor" id="visor">
+        <video id="cam" playsinline muted></video>
+        <div class="vacio"><div><p id="vacioTxt">Enciende la cámara y muestra tu mano.</p>
+          <button class="principal" id="btnCamara">Encender cámara</button></div></div>
+        <canvas id="trazo"></canvas>
+        <div class="aro" id="aro"></div>
+        <div class="lectura" id="lectura">Esperando un gesto</div>
+      </div>
+      <div class="gestos" id="gestos"></div>
+      <div class="pie-camara"><span id="infoModelo">Haz el gesto con la palma hacia la cámara.</span>
+        <button class="secundario" id="btnApagar" style="display:none">Apagar cámara</button></div>
+    </div>
+
+    <div class="ahora">
+      <div class="detalle" id="estadoLoop">El loop está detenido</div>
+      <div class="golpe-grande" id="golpeGrande" aria-live="polite">Bombo</div>
+      <div class="detalle" id="golpeInfo">Toca un pad o haz un gesto para empezar.</div>
+      <div class="compas" id="compas"><i></i><i></i><i></i><i></i></div>
+      <div class="esp">
+        <h4>ESP32 en Wokwi</h4>
+        <div class="leds" id="leds"></div>
+        <div class="mensaje-mqtt" id="mensajeMqtt"></div>
+      </div>
+      <div class="estado">
+        <span id="stSonido"><i></i>Sonido</span>
+        <span id="stCamara"><i></i>Cámara</span>
+        <span id="stModelo"><i></i><span id="nombreDetector">Detector de mano</span></span>
+        <span id="stVoz"><i></i>Voz</span>
+        <span id="stMqtt"><i></i>Conexión al ESP32</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="secuenciador">
+    <div class="sec-cab">
+      <div><h3>Tu beat</h3><p id="secInfo">Un compás de 16 pasos. Toca las casillas para poner o quitar golpes.</p></div>
+      <button class="secundario" id="btnBorrar">Borrar todo</button>
+    </div>
+    <div id="filas"></div>
+  </section>
+
+  <div class="pads" id="pads"></div>
+  <div class="ayuda" id="vozTexto">También puedes usar las teclas 1 a 6.</div>
+</div>
+
+<script>
+// ───────────────────────── datos ─────────────────────────
+// Cada gesto (identificado por su nota, igual que en GestoBeat) dispara un sonido de batería.
+const NOTAS = [
+  { n: 'Do',  nombre: 'Caja',     color: '#e8413c', gesto: '✋', desc: 'mano abierta' },
+  { n: 'Re',  nombre: 'Bombo',    color: '#f5922f', gesto: '✊', desc: 'puño' },
+  { n: 'Mi',  nombre: 'Hi-hat',   color: '#f7d23e', gesto: '☝️', desc: 'un dedo' },
+  { n: 'Fa',  nombre: 'Platillo', color: '#9ccc3c', gesto: '🤟', desc: 'pulgar, índice y meñique' },
+  { n: 'Sol', nombre: 'Aplauso',  color: '#2a9d6f', gesto: '✌️', desc: 'dos dedos' },
+  { n: 'La',  nombre: 'Bajo',     color: '#8e5cd9', gesto: '👍', desc: 'pulgar arriba' },
+];
+const porNombre = Object.fromEntries(NOTAS.map((x, i) => [x.n, i]));
+// orden de las filas del secuenciador y de los pads (del más grave al más agudo)
+const ORDEN = ['Re', 'Do', 'Mi', 'Sol', 'Fa', 'La'].map(n => porNombre[n]);
+const TECLAS = { '1': ORDEN[0], '2': ORDEN[1], '3': ORDEN[2], '4': ORDEN[3], '5': ORDEN[4], '6': ORDEN[5] };
+const PASOS = 16;
+const PATRONES = {
+  'Hip hop':   { bpm: 90,  filas: { Re: 'x......x..x.....', Do: '....x.......x...', Mi: 'x.x.x.x.x.x.x.x.', Sol: '............x...', Fa: '................', La: 'x......x..x.....' } },
+  'Reggaetón': { bpm: 95,  filas: { Re: 'x...x...x...x...', Do: '...x..x....x..x.', Mi: '..x...x...x...x.', Sol: '................', Fa: 'x...............', La: 'x.....x...x.....' } },
+  'Rock':      { bpm: 112, filas: { Re: 'x.....x.x.......', Do: '....x.......x...', Mi: 'x.x.x.x.x.x.x.x.', Sol: '................', Fa: 'x...............', La: 'x.....x.x.......' } },
+};
+const ORIGEN = { gesto: 'con un gesto', pad: 'en los pads', teclado: 'con el teclado', voz: 'con la voz', loop: 'en el loop' };
+const $ = id => document.getElementById(id);
+
+let args = { reconocimiento: 'mano', modelo_url: '', broker: '', topico: 'gestobeat_miguelruiz', umbral: 0.75 };
+let patron = NOTAS.map(() => Array(PASOS).fill(false));
+let grabando = false, metronomo = true, pasoActual = -1;
+const saltar = NOTAS.map(() => -1);
+let stats = { golpes: 0, por_sonido: {}, por_origen: {}, bpm: 90, pasos: 0, loops_grabados: 0, mqtt_enviados: 0, ultimas: [] };
+
+// ───────────────────────── Streamlit (protocolo de componentes) ─────────────────────────
+function aStreamlit(type, data) { window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type }, data || {}), '*'); }
+let altoPrevio = 0;
+function ajustarAlto() {
+  const h = Math.ceil($('app').getBoundingClientRect().height) + 8;
+  if (h !== altoPrevio) { altoPrevio = h; aStreamlit('streamlit:setFrameHeight', { height: h }); }
+}
+new ResizeObserver(ajustarAlto).observe($('app'));
+let envioPendiente = null;
+function enviarStats() {
+  if (envioPendiente) return;
+  envioPendiente = setTimeout(() => {
+    envioPendiente = null;
+    stats.bpm = Math.round(Tone.Transport.bpm.value);
+    stats.pasos = patron.flat().filter(Boolean).length;
+    aStreamlit('streamlit:setComponentValue', { value: stats, dataType: 'json' });
+  }, 1500);
+}
+let primeraVez = true;
+window.addEventListener('message', ev => {
+  const d = ev.data || {};
+  if (d.type !== 'streamlit:render') return;
+  const nuevos = Object.assign({}, args, d.args || {});
+  const cambioModelo = primeraVez || nuevos.modelo_url !== args.modelo_url || nuevos.reconocimiento !== args.reconocimiento;
+  const cambioMqtt = primeraVez || nuevos.broker !== args.broker || nuevos.topico !== args.topico;
+  if (primeraVez && nuevos.bpm) fijarBpm(nuevos.bpm);
+  args = nuevos; primeraVez = false;
+  if (cambioModelo) { cargarModelo(); reiniciarCamara(); }
+  if (cambioMqtt) conectarMqtt();
+  ajustarAlto();
+});
+aStreamlit('streamlit:componentReady', { apiVersion: 1 });
+
+function estado(id, clase) { $(id).className = clase || ''; }
+
+// ───────────────────────── sonidos de batería (Tone.js) ─────────────────────────
+let kit = null, sonidoListo = false;
+function crearKit() {
+  const bus = new Tone.Compressor({ threshold: -18, ratio: 3, attack: 0.003, release: 0.15 }).toDestination();
+  const sala = new Tone.Reverb({ decay: 1.1, wet: 0.14 }).connect(bus);
+  const bombo = new Tone.MembraneSynth({ pitchDecay: 0.045, octaves: 6, oscillator: { type: 'sine' },
+    envelope: { attack: 0.001, decay: 0.42, sustain: 0, release: 0.1 }, volume: 2 }).connect(bus);
+  const cajaRuido = new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.001, decay: 0.17, sustain: 0 }, volume: -8 })
+    .connect(new Tone.Filter(1400, 'highpass').connect(sala));
+  const cajaCuerpo = new Tone.MembraneSynth({ pitchDecay: 0.012, octaves: 2, envelope: { attack: 0.001, decay: 0.12, sustain: 0 }, volume: -10 }).connect(sala);
+  const hihat = new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.001, decay: 0.045, sustain: 0 }, volume: -16 })
+    .connect(new Tone.Filter(7000, 'highpass').connect(bus));
+  const aplauso = new Tone.NoiseSynth({ noise: { type: 'pink' }, envelope: { attack: 0.001, decay: 0.13, sustain: 0 }, volume: -6 })
+    .connect(new Tone.Filter({ frequency: 1300, type: 'bandpass', Q: 1.2 }).connect(sala));
+  const platillo = new Tone.MetalSynth({ envelope: { attack: 0.001, decay: 1.3, release: 0.6 }, harmonicity: 5.1, modulationIndex: 40,
+    resonance: 5200, octaves: 1.5, volume: -24 }).connect(sala);
+  const bajo = new Tone.MonoSynth({ oscillator: { type: 'sawtooth' }, filter: { Q: 2, type: 'lowpass', rolloff: -24 },
+    envelope: { attack: 0.004, decay: 0.25, sustain: 0.35, release: 0.2 },
+    filterEnvelope: { attack: 0.002, decay: 0.18, sustain: 0.15, baseFrequency: 110, octaves: 2.6 }, volume: -9 }).connect(bus);
+  const click = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.05, sustain: 0 }, volume: -16 }).connect(bus);
+  kit = { bombo, cajaRuido, cajaCuerpo, hihat, aplauso, platillo, bajo, click };
+}
+async function activarSonido() {
+  if (sonidoListo) return;
+  await Tone.start();
+  crearKit();
+  sonidoListo = true;
+  estado('stSonido', 'on');
+}
+function notaBajo(paso) { return paso < 6 ? 'C2' : paso < 10 ? 'G1' : paso < 14 ? 'A1' : 'F1'; }
+// dispara el sonido del gesto i en el instante t (tiempo de audio)
+function disparar(i, t, paso) {
+  if (!sonidoListo) return;
+  t = t || Tone.now();
+  switch (NOTAS[i].nombre) {
+    case 'Bombo': kit.bombo.triggerAttackRelease('C1', '8n', t); break;
+    case 'Caja': kit.cajaRuido.triggerAttackRelease('16n', t); kit.cajaCuerpo.triggerAttackRelease('G2', '32n', t); break;
+    case 'Hi-hat': kit.hihat.triggerAttackRelease('32n', t); break;
+    case 'Aplauso': [0, 0.011, 0.023].forEach(d => kit.aplauso.triggerAttackRelease('32n', t + d)); break;
+    case 'Platillo': kit.platillo.triggerAttackRelease(260, '2n', t); break;
+    case 'Bajo': kit.bajo.triggerAttackRelease(notaBajo(paso >= 0 ? paso : Math.max(pasoActual, 0)), '8n', t); break;
+  }
+}
+
+// ───────────────────────── loop de 16 pasos ─────────────────────────
+Tone.Transport.bpm.value = 90;
+const secuencia = new Tone.Sequence((t, paso) => {
+  NOTAS.forEach((_, i) => {
+    if (!patron[i][paso]) return;
+    if (saltar[i] === paso) { saltar[i] = -1; return; }   // ya sonó en vivo al grabarlo
+    disparar(i, t, paso);
+  });
+  if (metronomo && paso % 4 === 0 && sonidoListo) kit.click.triggerAttackRelease(paso === 0 ? 'C6' : 'G5', '32n', t);
+  Tone.Draw.schedule(() => {
+    pasoActual = paso;
+    pintarPaso(paso);
+    NOTAS.forEach((_, i) => { if (patron[i][paso]) iluminar(i, 'loop'); });
+  }, t);
+}, [...Array(PASOS).keys()], '16n');
+secuencia.start(0);
+
+function reproducir() {
+  if (Tone.Transport.state === 'started') return;
+  activarSonido().then(() => { Tone.Transport.start('+0.05'); actualizarTransporte(); });
+}
+function detener() {
+  Tone.Transport.stop(); grabando = false; pasoActual = -1;
+  pintarPaso(-1); actualizarTransporte();
+}
+function alternarGrabar() {
+  grabando = !grabando;
+  if (grabando) { stats.loops_grabados++; reproducir(); }
+  actualizarTransporte();
+}
+function fijarBpm(v) {
+  v = Math.max(60, Math.min(160, Math.round(v)));
+  Tone.Transport.bpm.value = v;
+  $('bpmValor').innerHTML = `${v} <small>BPM</small>`;
+  enviarStats();
+}
+function actualizarTransporte() {
+  const sonando = Tone.Transport.state === 'started';
+  $('btnPlay').classList.toggle('activo', sonando);
+  $('btnPlay').textContent = sonando ? '■' : '▶';
+  $('btnPlay').setAttribute('aria-label', sonando ? 'Detener' : 'Reproducir');
+  $('btnGrabar').classList.toggle('activo', grabando);
+  $('grabarEtiqueta').textContent = grabando ? 'Grabando' : 'Grabar';
+  $('estadoLoop').textContent = grabando ? 'Grabando: lo que toques queda en el loop' : sonando ? 'El loop está sonando' : 'El loop está detenido';
+}
+$('btnPlay').onclick = () => Tone.Transport.state === 'started' ? detener() : reproducir();
+$('btnGrabar').onclick = () => activarSonido().then(alternarGrabar);
+$('bpmMenos').onclick = () => fijarBpm(Tone.Transport.bpm.value - 5);
+$('bpmMas').onclick = () => fijarBpm(Tone.Transport.bpm.value + 5);
+$('btnMetronomo').onclick = () => { metronomo = !metronomo; $('btnMetronomo').classList.toggle('activo', metronomo); };
+$('btnBorrar').onclick = () => { patron = NOTAS.map(() => Array(PASOS).fill(false)); pintarGrilla(); enviarStats(); };
+
+// Paso del compás donde cae un golpe tocado ahora (cuantizado a semicorcheas).
+// Los gestos llegan un poco tarde por la cámara, así que se compensa ese retraso.
+function pasoCuantizado(origen) {
+  const ticksPorPaso = Tone.Transport.PPQ / 4;
+  const retraso = origen === 'gesto' ? 0.16 : 0.03;
+  const ticks = Tone.Transport.ticks - Tone.Transport.toTicks(retraso);
+  const exacto = ticks / ticksPorPaso;
+  const paso = ((Math.round(exacto) % PASOS) + PASOS) % PASOS;
+  const adelantado = Math.round(exacto) > Math.floor(exacto);
+  return { paso, adelantado };
+}
+
+// ───────────────────────── MQTT por websockets ─────────────────────────
+let cliente = null, mqttListo = false, ultimoEnvio = 0;
+function conectarMqtt() {
+  if (cliente) { try { cliente.end(true); } catch (e) {} cliente = null; }
+  mqttListo = false;
+  $('mensajeMqtt').textContent = `Conectando al tópico ${args.topico}…`;
+  if (!args.broker) { estado('stMqtt', 'espera'); return; }
+  estado('stMqtt', 'espera');
+  try {
+    cliente = mqtt.connect(args.broker, { clientId: 'gestobeat-studio-' + Math.random().toString(16).slice(2, 8),
+                                          reconnectPeriod: 4000, connectTimeout: 8000, clean: true });
+    cliente.on('connect', () => { mqttListo = true; estado('stMqtt', 'on'); $('mensajeMqtt').textContent = `Conectado al tópico ${args.topico}.`; });
+    cliente.on('close', () => { if (mqttListo) $('mensajeMqtt').textContent = 'Se perdió la conexión. Reintentando…'; mqttListo = false; estado('stMqtt', 'error'); });
+    cliente.on('error', () => { mqttListo = false; estado('stMqtt', 'error'); $('mensajeMqtt').textContent = 'No se pudo conectar al broker. Revisa la dirección en Ajustes.'; });
+  } catch (e) { estado('stMqtt', 'error'); }
+}
+// El ESP32 entiende notas: cada sonido enciende el LED del gesto que lo dispara
+function publicar(i) {
+  if (!cliente || !mqttListo) return;
+  const ahora = performance.now();
+  if (ahora - ultimoEnvio < 70) return;              // no saturar el broker público
+  ultimoEnvio = ahora;
+  const msg = JSON.stringify({ nota: NOTAS[i].n, instrumento: NOTAS[i].nombre.toLowerCase() });
+  cliente.publish(args.topico, msg, { qos: 0 });
+  stats.mqtt_enviados++;
+  $('mensajeMqtt').textContent = `Enviado: ${msg}`;
+}
+
+// ───────────────────────── golpes ─────────────────────────
+function iluminar(i, origen) {
+  const x = NOTAS[i], g = $('golpeGrande');
+  g.textContent = x.nombre; g.style.color = x.color;
+  g.classList.remove('golpe'); void g.offsetWidth; g.classList.add('golpe');
+  if (origen !== 'loop') $('golpeInfo').innerHTML = `Sonó <b>${x.nombre}</b> ${ORIGEN[origen] || ''}.`;
+  const pad = $('pad' + i); pad.classList.add('golpe'); setTimeout(() => pad.classList.remove('golpe'), 130);
+  const led = $('led' + i); led.classList.add('on'); setTimeout(() => led.classList.remove('on'), 140);
+  publicar(i);
+}
+function golpe(i, origen) {
+  disparar(i, Tone.now(), -1);
+  iluminar(i, origen);
+  if (grabando && Tone.Transport.state === 'started') {
+    const { paso, adelantado } = pasoCuantizado(origen);
+    if (!patron[i][paso]) { patron[i][paso] = true; pintarCelda(i, paso); }
+    if (adelantado) saltar[i] = paso;
+  }
+  stats.golpes++;
+  const nombre = NOTAS[i].nombre;
+  stats.por_sonido[nombre] = (stats.por_sonido[nombre] || 0) + 1;
+  stats.por_origen[origen] = (stats.por_origen[origen] || 0) + 1;
+  stats.ultimas.unshift({ sonido: nombre, origen, hora: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) });
+  stats.ultimas = stats.ultimas.slice(0, 12);
+  enviarStats();
+}
+// la detección de gestos llama a tocar(nota): se traduce al sonido de batería
+function tocar(nota, origen) { if (nota in porNombre) activarSonido().then(() => golpe(porNombre[nota], origen)); }
+
+// ───────────────────────── interfaz: pads, grilla, guía, LEDs ─────────────────────────
+ORDEN.forEach((i, k) => {
+  const x = NOTAS[i];
+  const pad = document.createElement('div');
+  pad.className = 'pad'; pad.id = 'pad' + i; pad.tabIndex = 0; pad.style.background = x.color; pad.style.color = x.color;
+  pad.setAttribute('role', 'button'); pad.setAttribute('aria-label', 'Tocar ' + x.nombre);
+  pad.innerHTML = `<span class="g">${x.gesto}</span><span style="color:var(--tinta)"><b>${x.nombre}</b><small>tecla ${k + 1}</small></span>`;
+  pad.addEventListener('pointerdown', e => { e.preventDefault(); activarSonido().then(() => golpe(i, 'pad')); });
+  pad.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activarSonido().then(() => golpe(i, 'pad')); } });
+  $('pads').appendChild(pad);
+
+  const fila = document.createElement('div'); fila.className = 'fila';
+  fila.innerHTML = `<div class="nombre"><i style="background:${x.color}"></i><span>${x.nombre}</span></div><div class="pasos" id="fila${i}"></div>` +
+                   `<button class="limpiar" title="Borrar ${x.nombre}" aria-label="Borrar ${x.nombre}">×</button>`;
+  fila.querySelector('.limpiar').onclick = () => { patron[i].fill(false); pintarGrilla(); enviarStats(); };
+  $('filas').appendChild(fila);
+  for (let p = 0; p < PASOS; p++) {
+    const c = document.createElement('button'); c.className = 'celda'; c.id = `c${i}_${p}`;
+    c.setAttribute('aria-label', `${x.nombre}, paso ${p + 1}`);
+    c.onclick = () => { patron[i][p] = !patron[i][p]; pintarCelda(i, p); if (patron[i][p]) activarSonido().then(() => disparar(i, Tone.now(), p)); enviarStats(); };
+    $('fila' + i).appendChild(c);
+  }
+
+  const l = document.createElement('span'); l.className = 'led'; l.id = 'led' + i; l.style.background = x.color; l.style.color = x.color;
+  $('leds').appendChild(l);
+});
+NOTAS.forEach((x, i) => {
+  const g = document.createElement('div'); g.className = 'gesto'; g.id = 'gesto' + i; g.title = x.desc;
+  g.innerHTML = `<span>${x.gesto}</span><b style="color:${x.color}">${x.nombre}</b><div class="p"><i style="background:${x.color}"></i></div>`;
+  $('gestos').appendChild(g);
+});
+function pintarCelda(i, p) {
+  const c = $(`c${i}_${p}`);
+  c.classList.toggle('on', patron[i][p]);
+  c.style.background = patron[i][p] ? NOTAS[i].color : '';
+}
+function pintarGrilla() { NOTAS.forEach((_, i) => { for (let p = 0; p < PASOS; p++) pintarCelda(i, p); }); }
+let pasoPintado = -1;
+function pintarPaso(paso) {
+  if (pasoPintado >= 0) NOTAS.forEach((_, i) => $(`c${i}_${pasoPintado}`).classList.remove('actual'));
+  if (paso >= 0) NOTAS.forEach((_, i) => $(`c${i}_${paso}`).classList.add('actual'));
+  pasoPintado = paso;
+  document.querySelectorAll('#compas i').forEach((b, k) => b.classList.toggle('on', paso >= 0 && Math.floor(paso / 4) === k));
+}
+Object.keys(PATRONES).forEach(nombre => {
+  const b = document.createElement('button'); b.textContent = nombre;
+  b.onclick = () => cargarPatron(nombre);
+  $('patrones').appendChild(b);
+});
+function cargarPatron(nombre) {
+  const p = PATRONES[nombre];
+  patron = NOTAS.map(x => [...(p.filas[x.n] || '')].map(ch => ch === 'x').concat(Array(PASOS).fill(false)).slice(0, PASOS));
+  pintarGrilla(); fijarBpm(p.bpm);
+  document.querySelectorAll('#patrones button').forEach(b => b.classList.toggle('activo', b.textContent === nombre));
+  $('secInfo').textContent = `Patrón de ${nombre}. Cámbialo con las casillas o graba encima.`;
+  reproducir();
+}
+document.addEventListener('keydown', e => {
+  if (e.repeat) return;
+  const k = e.key.toLowerCase();
+  // en un pad o botón con foco, Enter y espacio ya los maneja ese elemento
+  if ((k === ' ' || k === 'enter') && (e.target.classList.contains('pad') || e.target.tagName === 'BUTTON')) return;
+  if (k in TECLAS) activarSonido().then(() => golpe(TECLAS[k], 'teclado'));
+  else if (k === ' ') { e.preventDefault(); Tone.Transport.state === 'started' ? detener() : reproducir(); }
+  else if (k === 'r') activarSonido().then(alternarGrabar);
+});
+
+// ───────────────────────── reconocimiento de gestos ─────────────────────────
+// Dos formas: «mano» usa MediaPipe Hands (21 puntos de la mano, cuenta los dedos levantados);
+// «modelo» usa el modelo de Teachable Machine entrenado con fotos de los gestos.
+let modelo = null, etiquetas = [], mapaNotas = [], manos = null, manosListas = false;
+const usaMano = () => (args.reconocimiento || 'mano') === 'mano';
+function normalizar(t) { return t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+function notaDeEtiqueta(et, i) {
+  const n = normalizar(et);
+  const m = n.match(/\b(do|re|mi|fa|sol|la)\b/);
+  if (m) return m[1][0].toUpperCase() + m[1].slice(1);
+  if (/nada|fondo|background|ninguno|vacio|neutral/.test(n)) return null;
+  return i < NOTAS.length ? NOTAS[i].n : null;
+}
+function detectorListo() { return usaMano() ? manosListas : !!modelo; }
+
+async function cargarModelo() {
+  estado('stModelo', 'espera');
+  $('nombreDetector').textContent = usaMano() ? 'Detector de mano' : 'Modelo';
+  if (usaMano()) return prepararManos();
+  modelo = null;
+  let base = (args.modelo_url || '').trim() || './modelo/';
+  if (!base.endsWith('/')) base += '/';
+  $('vacioTxt').textContent = 'Cargando tu modelo de Teachable Machine…';
+  try {
+    const meta = await (await fetch(base + 'metadata.json')).json();
+    modelo = await tf.loadLayersModel(base + 'model.json');
+    etiquetas = meta.labels || [];
+    mapaNotas = etiquetas.map(notaDeEtiqueta);
+    estado('stModelo', 'on');
+    $('vacioTxt').textContent = 'Tu modelo está listo. Enciende la cámara y haz un gesto.';
+    $('infoModelo').textContent = `Tu modelo reconoce: ${etiquetas.join(', ')}.`;
+  } catch (e) {
+    modelo = null; estado('stModelo', 'error');
+    $('vacioTxt').textContent = 'No se pudo cargar el modelo. Revisa el enlace de Teachable Machine en Ajustes; mientras tanto, toca con los pads.';
+    $('infoModelo').textContent = 'Sin modelo, la cámara no reconoce gestos.';
+  }
+}
+
+async function prepararManos() {
+  $('infoModelo').textContent = 'Haz el gesto con la palma hacia la cámara.';
+  $('vacioTxt').textContent = 'Enciende la cámara y muestra tu mano.';
+  if (manosListas) { estado('stModelo', 'on'); return; }
+  if (manos) return;
+  try {
+    manos = new Hands({ locateFile: f => 'lib/mediapipe/' + f });
+    manos.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.5, selfieMode: true });
+    manos.onResults(resultadosMano);
+    await manos.initialize();
+    manosListas = true; estado('stModelo', 'on');
+  } catch (e) {
+    console.error(e); manos = null; estado('stModelo', 'error');
+    $('infoModelo').textContent = 'No se pudo iniciar el detector de mano. Recarga la página.';
+  }
+}
+
+// Qué gesto hace la mano, a partir de sus 21 puntos
+function clasificarMano(lm) {
+  const v = $('cam'), asp = (v.videoWidth || 4) / (v.videoHeight || 3);
+  const P = i => ({ x: lm[i].x * asp, y: lm[i].y });
+  const d = (a, b) => { const p = P(a), q = P(b); return Math.hypot(p.x - q.x, p.y - q.y); };
+  const palma = d(0, 9);
+  const levantado = (punta, nudillo) => d(0, punta) > d(0, nudillo) * 1.08;
+  const dedos = [levantado(8, 6), levantado(12, 10), levantado(16, 14), levantado(20, 18)];
+  const cuantos = dedos.filter(Boolean).length;
+  const pulgarFuera = d(4, 5) > palma * 0.6 && d(4, 9) > d(3, 9);
+  const pulgarArriba = pulgarFuera && (P(2).y - P(4).y) > palma * 0.55;
+  if (cuantos >= 4) return 'Do';
+  if (cuantos === 0) return pulgarArriba ? 'La' : 'Re';
+  if (dedos[0] && !dedos[1] && !dedos[2] && !dedos[3]) return 'Mi';
+  if (dedos[0] && dedos[1] && !dedos[2] && !dedos[3]) return 'Sol';
+  if (dedos[0] && !dedos[1] && !dedos[2] && dedos[3]) return 'Fa';     // 🤟 pulgar, índice y meñique
+  return null;
+}
+
+const UNIONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+function dibujarMano(lm, color) {
+  const c = $('trazo'), ctx = c.getContext('2d');
+  const r = c.getBoundingClientRect();
+  if (c.width !== Math.round(r.width)) { c.width = Math.round(r.width); c.height = Math.round(r.height); }
+  ctx.clearRect(0, 0, c.width, c.height);
+  if (!lm) return;
+  // el video está recortado con object-fit: cover; ajustamos los puntos al recorte
+  const v = $('cam'), vw = v.videoWidth || 640, vh = v.videoHeight || 480;
+  const esc = Math.max(c.width / vw, c.height / vh), ox = (c.width - vw * esc) / 2, oy = (c.height - vh * esc) / 2;
+  const X = p => ox + p.x * vw * esc, Y = p => oy + p.y * vh * esc;
+  ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = color || 'rgba(244,242,255,0.75)';
+  UNIONES.forEach(([a, b]) => { ctx.beginPath(); ctx.moveTo(X(lm[a]), Y(lm[a])); ctx.lineTo(X(lm[b]), Y(lm[b])); ctx.stroke(); });
+  ctx.fillStyle = '#f4f2ff';
+  lm.forEach((p, i) => { ctx.beginPath(); ctx.arc(X(p), Y(p), [4, 8, 12, 16, 20].includes(i) ? 5 : 3, 0, Math.PI * 2); ctx.fill(); });
+}
+
+function dedosVistos(lm) {
+  const P = i => lm[i], d = (a, b) => Math.hypot(P(a).x - P(b).x, P(a).y - P(b).y);
+  const nombres = ['índice', 'medio', 'anular', 'meñique'];
+  const arriba = [[8, 6], [12, 10], [16, 14], [20, 18]].map(([t, k]) => d(0, t) > d(0, k) * 1.08);
+  const lista = nombres.filter((_, i) => arriba[i]);
+  return lista.length ? 'Veo ' + lista.join(', ') : 'Veo la mano cerrada';
+}
+function resultadosMano(r) {
+  const lm = r.multiHandLandmarks && r.multiHandLandmarks[0];
+  if (!lm) { dibujarMano(null); gestoDetectado(null, 1, true); return; }
+  const nota = clasificarMano(lm);
+  dibujarMano(lm, nota ? NOTAS[porNombre[nota]].color : null);
+  gestoDetectado(nota, 1, false);
+  if (!nota) $('lectura').textContent = dedosVistos(lm) + ': no es un gesto';
+}
+
+// ───────────────────────── cámara ─────────────────────────
+let stream = null, bucle = null, activa = false;
+async function encenderCamara() {
+  await activarSonido();
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
+    const v = $('cam'); v.srcObject = stream; await v.play();
+    $('visor').classList.add('viva'); $('btnApagar').style.display = '';
+    estado('stCamara', 'on'); activa = true;
+    if (usaMano()) { await prepararManos(); cicloMano(); }
+    else bucle = setInterval(predecir, 140);
+  } catch (e) {
+    estado('stCamara', 'error');
+    $('vacioTxt').textContent = 'No se pudo abrir la cámara. Dale permiso en el candado de la barra de direcciones.';
+  }
+}
+let enviandoMano = false;
+async function cicloMano() {
+  if (!activa || !usaMano()) return;
+  const v = $('cam');
+  if (manosListas && v.videoWidth && !enviandoMano) {
+    enviandoMano = true;
+    try { await manos.send({ image: v }); } catch (e) { console.error(e); }
+    enviandoMano = false;
+  }
+  requestAnimationFrame(cicloMano);
+}
+function apagarCamara() {
+  activa = false; clearInterval(bucle); bucle = null;
+  if (stream) stream.getTracks().forEach(t => t.stop()); stream = null;
+  $('visor').classList.remove('viva'); $('btnApagar').style.display = 'none';
+  estado('stCamara', ''); dibujarMano(null);
+  document.querySelectorAll('.gesto').forEach(g => { g.classList.remove('encendido'); g.querySelector('i').style.width = '0'; });
+}
+function reiniciarCamara() {   // si cambia la forma de reconocer con la cámara prendida
+  if (!activa) return;
+  clearInterval(bucle); bucle = null; dibujarMano(null);
+  if (usaMano()) prepararManos().then(cicloMano); else bucle = setInterval(predecir, 140);
+}
+
+let prediciendo = false;
+async function predecir() {
+  if (!modelo || prediciendo || usaMano()) return;
+  const v = $('cam'); if (!v.videoWidth) return;
+  prediciendo = true;
+  try {
+    const entrada = tf.tidy(() => {
+      let t = tf.browser.fromPixels(v);
+      const [h, w] = t.shape, s = Math.min(h, w);
+      t = t.slice([Math.floor((h - s) / 2), Math.floor((w - s) / 2), 0], [s, s, 3]);
+      t = tf.image.resizeBilinear(t, [224, 224]);
+      t = tf.reverse(t, 1);                       // espejo, igual que la webcam de Teachable Machine
+      return t.toFloat().div(127.5).sub(1).expandDims(0);
+    });
+    const salida = modelo.predict(entrada);
+    const probs = Array.from(await salida.data());
+    entrada.dispose(); salida.dispose();
+    let im = 0; probs.forEach((p, i) => { if (p > probs[im]) im = i; });
+    const nota = mapaNotas[im], p = probs[im];
+    const umbral = Number(args.umbral) || 0.8;
+    const porNota = NOTAS.map(() => 0);
+    probs.forEach((q, i) => { const n = mapaNotas[i]; if (n) porNota[porNombre[n]] = Math.max(porNota[porNombre[n]], q); });
+    pintarBarrasGesto(porNota);
+    if (nota && p >= umbral) gestoDetectado(nota, p, false);
+    else gestoDetectado(null, p, !nota && p >= 0.6);
+  } catch (e) { console.error(e); }
+  prediciendo = false;
+}
+
+// ───────────────────────── de gesto a sonido ─────────────────────────
+// La nota suena cuando el mismo gesto se mantiene unos cuadros seguidos. Para repetir la misma
+// nota hay que soltar el gesto: sacar la mano de la cámara o cambiar de forma un instante.
+let candidato = null, estable = 0, ultimoGesto = null, sinGesto = 0;
+function pintarBarrasGesto(valores) {
+  valores.forEach((p, i) => {
+    const g = $('gesto' + i);
+    g.querySelector('i').style.width = (p * 100).toFixed(0) + '%';
+    g.classList.toggle('encendido', p >= 0.99 || (!usaMano() && p >= (Number(args.umbral) || 0.8)));
+  });
+}
+function gestoDetectado(nota, conf, sinMano) {
+  const necesarios = usaMano() ? 3 : 2;
+  if (nota) {
+    sinGesto = 0;
+    if (nota === candidato) estable++; else { candidato = nota; estable = 1; }
+    if (usaMano()) pintarBarrasGesto(NOTAS.map(x => x.n === nota ? Math.min(estable / necesarios, 1) : 0));
+    $('lectura').textContent = `${NOTAS[porNombre[nota]].gesto} ${NOTAS[porNombre[nota]].nombre}${usaMano() ? '' : ', ' + (conf * 100).toFixed(0) + ' %'}`;
+    if (estable >= necesarios && nota !== ultimoGesto) {
+      ultimoGesto = nota; tocar(nota, 'gesto');
+      const aro = $('aro'); aro.style.boxShadow = `inset 0 0 0 5px ${NOTAS[porNombre[nota]].color}`;
+      setTimeout(() => aro.style.boxShadow = 'inset 0 0 0 0 transparent', 280);
+    }
+  } else {
+    candidato = null; estable = 0; sinGesto++;
+    if (usaMano()) pintarBarrasGesto(NOTAS.map(() => 0));
+    $('lectura').textContent = sinMano ? 'Muestra tu mano' : (usaMano() ? 'Gesto no reconocido' : 'Tu modelo no está seguro del gesto');
+    if ((sinMano && sinGesto >= 2) || sinGesto >= 5) ultimoGesto = null;
+  }
+}
+$('btnCamara').onclick = encenderCamara;
+$('btnApagar').onclick = apagarCamara;
+
+
+
+// ───────────────────────── voz (Web Speech API) ─────────────────────────
+const Reconocedor = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, vozActiva = false;
+const PALABRAS_SONIDO = { bombo: 'Re', caja: 'Do', redoblante: 'Do', hihat: 'Mi', 'hi-hat': 'Mi', jaijat: 'Mi', platillo: 'Fa', aplauso: 'Sol', palmas: 'Sol', bajo: 'La' };
+function comandoDeVoz(texto) {
+  const t = normalizar(texto).trim();
+  $('vozTexto').textContent = `Escuché: «${texto.trim()}»`;
+  const numero = t.match(/\b(\d{2,3})\b/);
+  if (numero) return fijarBpm(+numero[1]);
+  if (/mas rapido|acelera/.test(t)) return fijarBpm(Tone.Transport.bpm.value + 10);
+  if (/mas lento|despacio/.test(t)) return fijarBpm(Tone.Transport.bpm.value - 10);
+  if (/grab/.test(t)) { if (!grabando) alternarGrabar(); return; }
+  if (/para|deten|stop|alto/.test(t)) return detener();
+  if (/toca|reproduc|play|dale|empieza/.test(t)) return reproducir();
+  if (/borra|limpia/.test(t)) return $('btnBorrar').click();
+  if (/metronomo/.test(t)) return $('btnMetronomo').click();
+  if (/hip ?hop/.test(t)) return cargarPatron('Hip hop');
+  if (/reggaeton|regueton/.test(t)) return cargarPatron('Reggaetón');
+  if (/rock/.test(t)) return cargarPatron('Rock');
+  const sonidos = t.split(/\s+/).map(w => PALABRAS_SONIDO[w]).filter(Boolean);
+  sonidos.forEach((n, k) => setTimeout(() => tocar(n, 'voz'), k * 300));
+}
+function alternarVoz() {
+  if (!Reconocedor) { estado('stVoz', 'error'); $('vozTexto').textContent = 'Este navegador no reconoce la voz. Abre la app en Chrome.'; return; }
+  activarSonido();
+  vozActiva = !vozActiva;
+  $('btnVoz').classList.toggle('activo', vozActiva);
+  $('vozEtiqueta').textContent = vozActiva ? 'Te estoy escuchando' : 'Activar voz';
+  if (vozActiva) {
+    rec = new Reconocedor(); rec.lang = 'es-CO'; rec.continuous = true; rec.interimResults = false;
+    rec.onresult = e => comandoDeVoz(e.results[e.results.length - 1][0].transcript);
+    rec.onerror = e => { if (e.error === 'not-allowed') { vozActiva = false; estado('stVoz', 'error');
+      $('btnVoz').classList.remove('activo'); $('vozEtiqueta').textContent = 'Activar voz';
+      $('vozTexto').textContent = 'El micrófono está bloqueado. Dale permiso en el candado de la barra de direcciones.'; } };
+    rec.onend = () => { if (vozActiva) { try { rec.start(); } catch (e) {} } else estado('stVoz', ''); };
+    rec.start(); estado('stVoz', 'on');
+    $('vozTexto').textContent = 'Di «grabar», «parar», «borrar», «más rápido», «ciento veinte», «reggaetón» o un sonido, como «bombo».';
+  } else { rec && rec.stop(); estado('stVoz', ''); $('vozTexto').textContent = 'También puedes usar las teclas 1 a 6.'; }
+}
+$('btnVoz').onclick = alternarVoz;
+
+// ───────────────────────── inicio ─────────────────────────
+(function portadaAnimada() {
+  const mini = $('miniGrilla');
+  const filas = [ORDEN[0], ORDEN[1], ORDEN[2]];
+  const pat = ['x...x...', '..x...x.', 'xxxxxxxx'];
+  filas.forEach((i, f) => [...pat[f]].forEach((ch, p) => {
+    const c = document.createElement('i');
+    if (ch === 'x') { c.style.background = NOTAS[i].color; c.style.animationDelay = (p * 0.2) + 's'; }
+    mini.appendChild(c);
+  }));
+})();
+$('btnEmpezar').onclick = async () => { await activarSonido(); $('portada').classList.add('oculta'); };
+pintarGrilla(); actualizarTransporte();
+document.addEventListener('click', e => { if (e.target.closest('button')) e.target.closest('button').blur(); });
+</script>
+</body>
+</html>
