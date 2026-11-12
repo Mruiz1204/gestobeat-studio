@@ -1,12 +1,8 @@
-# 🥁 GestoBeat Studio · Miguel Ruiz
+# 🥁 Tu primer beat (GestoBeat Studio) · Miguel Ruiz
 
-Versión de beats del proyecto final de **Creación de Interfaces Multimodales** (EAFIT 2026-2).
+Versión de aprendizaje del proyecto final de **Creación de Interfaces Multimodales** (EAFIT 2026-2).
 
-Cada gesto dispara un sonido de batería (✊ bombo, ✋ caja, ☝️ hi-hat, ✌️ aplauso, 🤟 platillo, 👍 bajo). Lo que tocas se graba en un loop de 16 pasos, cuantizado al tiempo, y le vas sumando capas. Con la voz controlas el estudio («grabar», «parar», «más rápido», «ciento veinte») y el ESP32 de Wokwi parpadea al ritmo.
-
-Un instrumento musical sin instrumento: cada gesto de la mano frente a la cámara, cada toque en el tablero,
-cada tecla o cada palabra dicha suena como una nota afinada. Con la voz se cambia de instrumento y un ESP32
-en Wokwi enciende el LED de cada nota y la toca en su buzzer.
+Un juego para aprender a hacer un beat con las manos, en cuatro lecciones: el bombo ✊ en el 1 y el 3, la caja ✋ en el 2 y el 4, el hi-hat ☝️ en los «y» y todo junto. Cada lección toca un compás de ejemplo y luego le dice al jugador si llegó a tiempo. La voz controla las lecciones y el ESP32 de Wokwi parpadea al ritmo.
 
 | Gesto | Nota | LED |
 |---|---|---|

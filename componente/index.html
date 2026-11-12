@@ -180,14 +180,14 @@
   <div class="portada" id="portada">
     <div>
       <div class="mini" id="miniGrilla"></div>
-      <h1>Arma tu beat con las manos</h1>
-      <p>Cada gesto es un sonido de batería. Aprende paso a paso tu primer beat, o entra al estudio y graba el tuyo.</p>
+      <h1>Aprende a hacer un beat</h1>
+      <p>Con tus manos y en cuatro lecciones: bombo, caja, hi-hat y todo junto. Cada gesto es un sonido de batería.</p>
       <button class="principal" id="btnEmpezar">Empezar</button>
     </div>
   </div>
 
   <div class="transporte">
-    <div class="modos" role="group" aria-label="Modo">
+    <div class="modos solo-estudio" role="group" aria-label="Modo">
       <button data-modo="aprender" class="activo">Aprender</button>
       <button data-modo="estudio">Estudio</button>
     </div>
@@ -256,7 +256,7 @@
   <section class="secuenciador">
     <div class="sec-cab">
       <div><h3>Tu beat</h3><p id="secInfo">Un compás de 16 pasos. Toca las casillas para poner o quitar golpes.</p></div>
-      <button class="secundario" id="btnBorrar">Borrar todo</button>
+      <button class="secundario solo-estudio" id="btnBorrar">Borrar todo</button>
     </div>
     <div id="filas"></div>
   </section>
@@ -540,7 +540,7 @@ function prepararLeccion(n) {
   $('lecTexto').textContent = L.texto;
   $('lecEmpezar').textContent = n === 0 ? 'Empezar la lección' : 'Empezar';
   $('lecEmpezar').style.display = '';
-  $('lecEscuchar').textContent = 'Escuchar otra vez';
+  $('lecEscuchar').style.display = '';
   $('lecSaltar').style.display = '';
   veredicto(L.final ? 'Primero escucha cómo suena completo.' : `Primero escucha dónde va ${articulo(L.sonido)}.`, 'info');
   pintarCuentaBase(); marcarMetas(); pintarProgreso();
@@ -629,11 +629,11 @@ function celebrar() {
   lec.fase = 'celebrar';
   stats.lecciones = LECCIONES.length; stats.primer_beat = true;
   $('lecTitulo').textContent = '¡Hiciste tu primer beat!';
-  $('lecTexto').innerHTML = 'Bombo en el 1 y el 3, caja en el 2 y el 4, hi-hat en los «y». Con esos tres sonidos se arma la base de casi todo el pop, el rock y el hip hop. <b>Llévalo al estudio</b> para agregarle aplausos, platillo y bajo.';
+  $('lecTexto').innerHTML = 'Bombo en el 1 y el 3, caja en el 2 y el 4, hi-hat en los «y». Con esos tres sonidos se arma la base de casi todo el pop, el rock y el hip hop. Déjalo sonando y tócale encima lo que quieras: aplausos ✌️, platillo 🤟 o bajo 👍.';
   veredicto('🎉 Beat completo', 'bien');
-  $('lecEmpezar').textContent = 'Llevarlo al estudio';
+  $('lecEmpezar').textContent = 'Aprender otra vez';
   $('lecEmpezar').style.display = '';
-  $('lecEscuchar').textContent = 'Repetir las lecciones';
+  $('lecEscuchar').style.display = 'none';
   $('lecSaltar').style.display = 'none';
   pintarCuentaBase(); marcarMetas(); enviarStats();
 }
@@ -676,12 +676,12 @@ function cambiarModo(nuevo) {
   $('app').classList.toggle('estudio', modo === 'estudio');
   document.querySelectorAll('.modos button').forEach(b => b.classList.toggle('activo', b.dataset.modo === modo));
   grabando = false; marcarMetas(); pintarCuenta(-1);
-  $('secInfo').textContent = modo === 'aprender' ? 'Aquí se va armando el beat que aprendes, capa por capa.'
+  $('secInfo').textContent = modo === 'aprender' ? 'Aquí se va armando el beat que aprendes, capa por capa. Toca una casilla para oír su sonido.'
                                                  : 'Un compás de 16 pasos. Toca las casillas para poner o quitar golpes.';
   actualizarTransporte(); ajustarAlto();
 }
 document.querySelectorAll('.modos button').forEach(b => b.onclick = () => cambiarModo(b.dataset.modo));
-$('lecEmpezar').onclick = () => lec.fase === 'celebrar' ? cambiarModo('estudio') : empezarLeccion();
+$('lecEmpezar').onclick = () => { if (lec.fase === 'celebrar') prepararLeccion(0); empezarLeccion(); };
 $('lecEscuchar').onclick = () => {
   if (lec.fase === 'celebrar') { prepararLeccion(0); return; }
   lec.fase = 'escucha'; lec.compases = 0; $('lecEmpezar').style.display = 'none';
@@ -707,13 +707,13 @@ ORDEN.forEach((i, k) => {
 
   const fila = document.createElement('div'); fila.className = 'fila';
   fila.innerHTML = `<div class="nombre"><i style="background:${x.color}"></i><span>${x.nombre}</span></div><div class="pasos" id="fila${i}"></div>` +
-                   `<button class="limpiar" title="Borrar ${x.nombre}" aria-label="Borrar ${x.nombre}">×</button>`;
+                   `<button class="limpiar solo-estudio" title="Borrar ${x.nombre}" aria-label="Borrar ${x.nombre}">×</button>`;
   fila.querySelector('.limpiar').onclick = () => { patron[i].fill(false); pintarGrilla(); enviarStats(); };
   $('filas').appendChild(fila);
   for (let p = 0; p < PASOS; p++) {
     const c = document.createElement('button'); c.className = 'celda'; c.id = `c${i}_${p}`;
     c.setAttribute('aria-label', `${x.nombre}, paso ${p + 1}`);
-    c.onclick = () => { patron[i][p] = !patron[i][p]; pintarCelda(i, p); if (patron[i][p]) activarSonido().then(() => disparar(i, Tone.now(), p)); enviarStats(); };
+    c.onclick = () => activarSonido().then(() => disparar(i, Tone.now(), p));
     $('fila' + i).appendChild(c);
   }
 
@@ -758,7 +758,6 @@ document.addEventListener('keydown', e => {
   if ((k === ' ' || k === 'enter') && (e.target.classList.contains('pad') || e.target.tagName === 'BUTTON')) return;
   if (k in TECLAS) activarSonido().then(() => golpe(TECLAS[k], 'teclado'));
   else if (k === ' ') { e.preventDefault(); Tone.Transport.state === 'started' ? detener() : reproducir(); }
-  else if (k === 'r') activarSonido().then(alternarGrabar);
 });
 
 // ───────────────────────── reconocimiento de gestos ─────────────────────────
@@ -984,16 +983,12 @@ function comandoDeVoz(texto) {
   if (/mas rapido|acelera/.test(t)) return fijarBpm(Tone.Transport.bpm.value + 10);
   if (/mas lento|despacio/.test(t)) return fijarBpm(Tone.Transport.bpm.value - 10);
   if (modo === 'aprender' && /empez|comenz|leccion/.test(t)) return empezarLeccion();
-  if (/aprend/.test(t)) return cambiarModo('aprender');
-  if (/estudio/.test(t)) return cambiarModo('estudio');
-  if (/grab/.test(t)) { if (modo === 'aprender') cambiarModo('estudio'); if (!grabando) alternarGrabar(); return; }
+  if (/otra vez|repetir/.test(t) && lec.fase === 'celebrar') { prepararLeccion(0); return empezarLeccion(); }
+  if (/escuch/.test(t)) return $('lecEscuchar').click();
+  if (/salt|siguiente/.test(t)) return $('lecSaltar').click();
   if (/para|deten|stop|alto/.test(t)) return detener();
   if (/toca|reproduc|play|dale|empieza/.test(t)) return reproducir();
-  if (/borra|limpia/.test(t)) return $('btnBorrar').click();
   if (/metronomo/.test(t)) return $('btnMetronomo').click();
-  if (/hip ?hop/.test(t)) return cargarPatron('Hip hop');
-  if (/reggaeton|regueton/.test(t)) return cargarPatron('Reggaetón');
-  if (/rock/.test(t)) return cargarPatron('Rock');
   const sonidos = t.split(/\s+/).map(w => PALABRAS_SONIDO[w]).filter(Boolean);
   sonidos.forEach((n, k) => setTimeout(() => tocar(n, 'voz'), k * 300));
 }
@@ -1011,7 +1006,7 @@ function alternarVoz() {
       $('vozTexto').textContent = 'El micrófono está bloqueado. Dale permiso en el candado de la barra de direcciones.'; } };
     rec.onend = () => { if (vozActiva) { try { rec.start(); } catch (e) {} } else estado('stVoz', ''); };
     rec.start(); estado('stVoz', 'on');
-    $('vozTexto').textContent = 'Di «grabar», «parar», «borrar», «más rápido», «ciento veinte», «reggaetón» o un sonido, como «bombo».';
+    $('vozTexto').textContent = 'Di «empezar», «escuchar», «saltar», «más lento», «parar» o un sonido, como «bombo».';
   } else { rec && rec.stop(); estado('stVoz', ''); $('vozTexto').textContent = 'También puedes usar las teclas 1 a 6.'; }
 }
 $('btnVoz').onclick = alternarVoz;

@@ -1,10 +1,11 @@
 """
-GestoBeat Studio — Miguel Ruiz
+Tu primer beat (GestoBeat Studio) — Miguel Ruiz
 Proyecto final · Creación de Interfaces Multimodales (EAFIT 2026-2)
 
-Versión de beats de GestoBeat: cada gesto de la mano dispara un sonido de batería, lo que tocas
-se graba en un loop de un compás (16 pasos, cuantizado al tiempo) y le vas sumando capas.
-Con la voz se controla el estudio (grabar, parar, tempo) y un ESP32 en Wokwi parpadea al ritmo.
+Juego para aprender a hacer un beat con las manos: cada gesto es un sonido de batería y en cuatro
+lecciones se arma el ritmo más básico (bombo en 1 y 3, caja en 2 y 4, hi-hat en los «y»). La app
+toca un compás de ejemplo, escucha al jugador y le dice si llegó a tiempo. La voz controla las
+lecciones y un ESP32 en Wokwi parpadea al ritmo.
 
 Todo lo que necesita tiempo real (cámara, detector de mano o modelo de Teachable Machine,
 sonido, loop, voz y MQTT) corre en el navegador, dentro del componente de `componente/`.
@@ -18,7 +19,7 @@ import streamlit.components.v1 as components
 
 from estilo import SONIDOS, aplicar, marca
 
-st.set_page_config(page_title="GestoBeat Studio", page_icon="🥁", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Tu primer beat", page_icon="🥁", layout="wide", initial_sidebar_state="collapsed")
 aplicar()
 
 _studio = components.declare_component("gestobeat_studio", path=str(Path(__file__).parent / "componente"))
@@ -47,7 +48,7 @@ with st.sidebar:
                        help="El golpe solo suena si el modelo está así de seguro del gesto.")
     st.divider()
     st.markdown("### Tempo")
-    bpm = st.slider("BPM al abrir", 60, 160, 90, 5, help="Luego lo cambias en el estudio con − y +, o con la voz.")
+    bpm = st.slider("Velocidad de las lecciones (BPM)", 60, 120, 80, 5, help="Más bajo es más fácil. También lo cambias con − y + o diciendo «más lento».")
     st.divider()
     st.markdown("### Conexión con el ESP32")
     broker = st.text_input("Broker MQTT (websocket)", value="wss://broker.hivemq.com:8884/mqtt",
@@ -58,8 +59,8 @@ with st.sidebar:
 # ─────────────────────────────────────────────
 # ESTUDIO
 # ─────────────────────────────────────────────
-marca("Cada gesto es un sonido de batería. Aprende paso a paso tu primer beat o arma el tuyo en el estudio, capa por capa.",
-      titulo="GestoBeat Studio")
+marca("Aprende a hacer un beat con tus manos: cada gesto es un sonido de batería y en cuatro lecciones armas el ritmo más básico de todos.",
+      titulo="Tu primer beat")
 
 estado = _studio(reconocimiento=reconocimiento, modelo_url=modelo_url, umbral=umbral, bpm=bpm,
                  broker=broker, topico=topico, key="studio", default=None) or {}
@@ -77,11 +78,10 @@ if total:
     frase = (f"Llevas <b>{total} {'golpe' if total == 1 else 'golpes'}</b>, casi todos {forma}. "
              f"El que más suena es el <b style='color:{SONIDOS.get(favorito, '#fff')}'>{favorito.lower()}</b>.")
     if estado.get("primer_beat"):
-        frase += " <b>Ya hiciste tu primer beat</b> en el modo Aprender."
+        frase += " <b>Ya hiciste tu primer beat.</b>"
     elif estado.get("lecciones"):
         frase += f" Vas en la lección <b>{estado['lecciones'] + 1} de 4</b>."
-    if estado.get("pasos"):
-        frase += f" Tu beat tiene <b>{estado['pasos']} golpes</b> en el compás y va a <b>{estado.get('bpm', 90)} BPM</b>."
+
     if estado.get("mqtt_enviados"):
         frase += f" El ESP32 recibió <b>{estado['mqtt_enviados']}</b> mensajes."
     maximo = max(por_sonido.values())
@@ -111,7 +111,7 @@ else:
 # ─────────────────────────────────────────────
 st.markdown('<h3 class="ayudas-titulo">Antes de tocar</h3>', unsafe_allow_html=True)
 
-with st.expander("Modo Aprender: tu primer beat en 4 lecciones"):
+with st.expander("Cómo funcionan las 4 lecciones"):
     st.markdown("""
 1. **El bombo** ✊ en el 1 y el 3: el latido del beat.
 2. **La caja** ✋ en el 2 y el 4: le responde al bombo.
@@ -119,27 +119,15 @@ with st.expander("Modo Aprender: tu primer beat en 4 lecciones"):
 4. **Todo junto:** tocas tú el bombo y la caja alternando ✊ y ✋ encima del hi-hat.
 
 Cada lección empieza con un compás de ejemplo; luego es tu turno y la app te dice si llegaste **a tiempo**, **un poco antes**
-o **un poco tarde**. La cuenta «1 y 2 y 3 y 4 y» marca de color dónde va cada golpe. Al terminar, lleva tu beat al estudio.
-""")
-
-with st.expander("Modo Estudio: cómo se arma un beat"):
-    st.markdown(f"""
-1. **Prueba los sonidos.** Toca los pads, usa las teclas 1 a 6 o enciende la cámara y haz los gestos:
-   ✊ bombo, ✋ caja, ☝️ hi-hat, ✌️ aplauso, 🤟 platillo (pulgar, índice y meñique) y 👍 bajo.
-2. **Dale ▶** para que corra el loop y escucha el metrónomo: cuatro tiempos por compás.
-3. **Dale Grabar** (o la tecla R) y toca encima. Cada golpe se acomoda solo al tiempo más cercano, aunque llegues un poco tarde.
-4. **Suma capas:** primero el bombo, después la caja, después el hi-hat y al final el bajo.
-5. **Corrige en la grilla:** toca una casilla para poner o quitar un golpe, o la × de una fila para borrarla.
-6. ¿Sin ideas? Carga un patrón de ejemplo (*Hip hop*, *Reggaetón* o *Rock*) y grábale encima.
+o **un poco tarde**. La cuenta «1 y 2 y 3 y 4 y» marca de color dónde va cada golpe. Al terminar, el beat queda sonando para que le toques encima aplausos ✌️, platillo 🤟 o bajo 👍.
 """)
 
 with st.expander("Comandos de voz"):
     st.markdown("""
-- «**grabar**», «**parar**», «**tocar**» o «**dale**»
-- «**más rápido**», «**más lento**» o un número, como «**ciento veinte**»
-- «**borrar**», «**metrónomo**»
-- «**hip hop**», «**reggaetón**», «**rock**» para cargar un patrón
-- El nombre de un sonido, como «**bombo**» o «**platillo**», para tocarlo
+- «**empezar**» para arrancar la lección, «**escuchar**» para oír otra vez el ejemplo, «**saltar**» para pasar a la siguiente
+- «**más lento**» o «**más rápido**», o un número, como «**ochenta**»
+- «**parar**» y «**dale**» para detener o seguir
+- El nombre de un sonido, como «**bombo**» o «**caja**», para tocarlo
 """)
 
 with st.expander("Conectar el ESP32 en Wokwi"):
@@ -148,5 +136,5 @@ Usa el mismo proyecto de Wokwi de GestoBeat: cada golpe enciende el LED del colo
 así las luces siguen el ritmo del loop. El tópico tiene que ser `{topico}`.
 """)
 
-st.markdown('<p class="pie">GestoBeat Studio es la versión de beats del proyecto final de Miguel Ruiz para Creación de Interfaces Multimodales, EAFIT 2026-2.</p>',
+st.markdown('<p class="pie">Tu primer beat es la versión de aprendizaje del proyecto final de Miguel Ruiz para Creación de Interfaces Multimodales, EAFIT 2026-2.</p>',
             unsafe_allow_html=True)
